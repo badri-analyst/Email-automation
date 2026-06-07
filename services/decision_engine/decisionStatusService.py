@@ -26,7 +26,7 @@ class DecisionStatusService:
         if selected_path == "role_country_only":
             return "role_country_only_selected", "run_role_country_only_personalization", "Role-country-only path was selected."
         if send_permission == "blocked":
-            return "smtp_not_configured", "generate_draft", "Sending is blocked; draft generation only."
+            return "gmail_not_configured", "generate_draft", "Sending is blocked; draft generation only."
         if send_permission == "draft_only":
             return "ready_for_draft_generation", "generate_draft", "Draft generation is allowed."
         if send_permission == "allowed":

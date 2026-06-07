@@ -57,7 +57,7 @@ class DecisionEngineController:
                 summary.ready_count += 1
             elif output.decision_status == "skipped_duplicate":
                 summary.skipped_count += 1
-            elif output.decision_status in {"blocked_invalid_email", "smtp_not_configured", "decision_failed"}:
+            elif output.decision_status in {"blocked_invalid_email", "gmail_not_configured", "decision_failed"}:
                 summary.blocked_count += 1
             elif output.decision_status == "manual_review_required":
                 summary.review_count += 1

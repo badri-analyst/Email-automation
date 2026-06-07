@@ -1,4 +1,4 @@
-"""SMTP and send-permission safety checks."""
+"""Gmail OAuth2 send-permission safety checks."""
 
 from schemas.decisionSchema import CampaignSettings
 
@@ -14,8 +14,8 @@ class SendPermissionService:
             return "blocked", "Email is missing."
         if not settings.sending_enabled:
             return "draft_only", "Sending is disabled for this campaign."
-        if not settings.smtp_configured:
-            return "blocked", "SMTP is not configured."
-        if not settings.smtp_valid:
-            return "blocked", "SMTP configuration is invalid."
+        if not settings.gmail_configured:
+            return "blocked", "Gmail OAuth2 is not configured."
+        if not settings.gmail_valid:
+            return "blocked", "Gmail OAuth2 configuration is invalid."
         return "allowed", ""

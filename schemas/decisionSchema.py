@@ -15,7 +15,7 @@ DecisionStatus = Literal[
     "role_country_only_selected",
     "manual_review_required",
     "insufficient_data",
-    "smtp_not_configured",
+    "gmail_not_configured",
     "decision_failed",
 ]
 NextAction = Literal[
@@ -59,8 +59,8 @@ class StrictDecisionModel(BaseModel):
 class CampaignSettings(StrictDecisionModel):
     """Campaign-level settings used for deterministic decisions."""
 
-    smtp_configured: bool = False
-    smtp_valid: bool = False
+    gmail_configured: bool = False
+    gmail_valid: bool = False
     sending_enabled: bool = False
     allow_draft_when_email_missing: bool = True
     require_manual_review_before_send: bool = True

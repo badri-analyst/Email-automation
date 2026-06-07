@@ -10,7 +10,7 @@ export const pipelineSteps = [
   'Candidate Assets',
   'Decision Engine',
   'Email Generation',
-  'SMTP Send',
+  'Gmail Send',
 ];
 
 export default function PipelineStepper({ steps = [] }) {

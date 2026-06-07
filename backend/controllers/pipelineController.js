@@ -209,7 +209,7 @@ function emailIsSendable(decisionOutput = {}, emailOutput = {}) {
     'skipped_duplicate',
     'manual_review_required',
     'insufficient_data',
-    'smtp_not_configured',
+    'gmail_not_configured',
     'decision_failed',
   ]);
   return decisionOutput.email_send_permission === 'allowed'
@@ -658,8 +658,8 @@ export async function runCampaign(request, response, next) {
           company_research_output: companyOutput,
           personality_analysis_output: personalityOutput,
           campaign_settings: {
-            smtp_configured: true,
-            smtp_valid: true,
+            gmail_configured: true,
+            gmail_valid: true,
             sending_enabled: true,
           },
         });
