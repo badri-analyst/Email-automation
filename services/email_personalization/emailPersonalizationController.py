@@ -1,0 +1,144 @@
+"""Email personalization controller."""
+
+from schemas.emailPersonalizationSchema import (
+    EmailPersonalizationInput,
+    EmailPersonalizationOutput,
+    PersonalizationUsed,
+    SourcesUsed,
+)
+from services.email_personalization.ctaBuilder import CtaBuilder
+from services.email_personalization.emailPersonalizationRepository import EmailPersonalizationRepository
+from services.email_personalization.emailQualityValidator import EmailQualityValidator
+from services.email_personalization.emailSafetyFilter import EmailSafetyFilter
+from services.email_personalization.fallbackEmailBuilder import FallbackEmailBuilder
+from services.email_personalization.hookModelEmailBuilder import HookModelEmailBuilder
+from services.email_personalization.subjectLineGenerator import SubjectLineGenerator
+from services.email_personalization.subjectSignalMapper import SubjectSignalMapper
+from services.email_personalization.toneAdapterService import ToneAdapterService
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class EmailPersonalizationController:
+    """Generate safe recruiter-facing outreach drafts from decision payloads."""
+
+    def __init__(self, repository: EmailPersonalizationRepository | None = None, max_attempts: int = 2) -> None:
+        self._subject_mapper = SubjectSignalMapper()
+        self._subject_generator = SubjectLineGenerator()
+        self._email_builder = HookModelEmailBuilder()
+        self._fallback = FallbackEmailBuilder()
+        self._cta = CtaBuilder()
+        self._tone = ToneAdapterService()
+        self._safety = EmailSafetyFilter()
+        self._quality = EmailQualityValidator()
+        self._repository = repository or EmailPersonalizationRepository()
+        self._max_attempts = max(1, max_attempts)
+
+    def generate(self, payload: EmailPersonalizationInput | dict[str, object]) -> EmailPersonalizationOutput:
+        """Generate one email draft with failure isolation."""
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                request = payload if isinstance(payload, EmailPersonalizationInput) else EmailPersonalizationInput.model_validate(payload)
+                return self._generate_once(request)
+            except Exception as exc:
+                logger.exception("Email personalization attempt %s failed", attempt)
+                if attempt == self._max_attempts:
+                    return EmailPersonalizationOutput(
+                        email_generation_status="email_generation_failed",
+                        email_generation_reason=str(exc) or "Email generation failed.",
+                        manual_review_flag=True,
+                    )
+        return EmailPersonalizationOutput(email_generation_status="email_generation_failed", manual_review_flag=True)
+
+    def _generate_once(self, request: EmailPersonalizationInput) -> EmailPersonalizationOutput:
+        """Run deterministic email draft generation."""
+        payload = request.final_personalization_payload
+        if not payload:
+            return self._blocked(request, "blocked_invalid_payload", "Final personalization payload is missing.")
+
+        company = payload.get("prospect", {}).get("company") or "your team"
+        subject_key = self._subject_mapper.select_subject_type(payload)
+        subject, subject_type = self._subject_generator.generate(subject_key, company)
+        tone = self._tone.select_tone(payload)
+        fallback_needed = self._is_weak_payload(payload)
+
+        if fallback_needed:
+            cta_type, cta_sentence = self._cta.build(request.variant)
+            body = self._fallback.build(payload, cta_sentence)
+            personalization = PersonalizationUsed(
+                trigger="role-based fallback",
+                action=cta_sentence,
+                variable_reward="A concise role-relevant proof point.",
+                investment="A quick resume review.",
+            )
+            sources = SourcesUsed(role_country_context_used=bool(payload.get("role_country_context")), fallback_used=True)
+            status = "fallback_email_created"
+            reason = "Personalization was weak; role-based fallback email created."
+        else:
+            body, cta_type, personalization, sources = self._email_builder.build(payload, request.variant)
+            status = "email_ready"
+            reason = "Email draft generated from approved personalization payload."
+
+        body = self._quality.shorten_body(body)
+        quality_ok, quality_reason = self._quality.validate(subject, body)
+        safe, safety_reason = self._safety.check(subject, body)
+        manual_review = not quality_ok
+        manual_reason = quality_reason if not quality_ok else ""
+        if not safe:
+            return self._blocked(request, "blocked_unsafe_content", safety_reason, subject, body, cta_type, tone)
+
+        output = EmailPersonalizationOutput(
+            campaign_id=request.campaign_id,
+            prospect_id=request.prospect_id,
+            subject_line=subject,
+            subject_type=subject_type,
+            email_body=body,
+            email_generation_status="manual_review_required" if manual_review else status,
+            email_generation_reason=manual_reason or reason,
+            personalization_used=personalization,
+            sources_used=sources,
+            cta_type=cta_type,
+            tone_used=tone,
+            word_count=self._quality.word_count(body),
+            manual_review_flag=manual_review,
+            manual_review_reason=manual_reason,
+        )
+        self._repository.save(output)
+        return output
+
+    @staticmethod
+    def _is_weak_payload(payload: dict) -> bool:
+        """Return whether fallback email should be used."""
+        return not (
+            payload.get("linkedin_context")
+            or payload.get("company_context")
+            or payload.get("selected_hooks")
+        )
+
+    def _blocked(
+        self,
+        request: EmailPersonalizationInput,
+        status: str,
+        reason: str,
+        subject: str = "",
+        body: str = "",
+        cta_type: str = "resume review",
+        tone: str = "professional",
+    ) -> EmailPersonalizationOutput:
+        """Return blocked output."""
+        output = EmailPersonalizationOutput(
+            campaign_id=request.campaign_id,
+            prospect_id=request.prospect_id,
+            subject_line=subject,
+            email_body=body,
+            email_generation_status=status,
+            email_generation_reason=reason,
+            cta_type=cta_type,
+            tone_used=tone,
+            word_count=self._quality.word_count(body),
+            manual_review_flag=True,
+            manual_review_reason=reason,
+        )
+        self._repository.save(output)
+        return output

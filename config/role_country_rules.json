@@ -1,0 +1,162 @@
+{
+  "roles": {
+    "Business Analyst": {
+      "summary": "Business Analysts clarify requirements, align stakeholders, and improve operational workflows.",
+      "core_responsibilities": [
+        "requirements gathering",
+        "stakeholder management",
+        "process mapping",
+        "documentation",
+        "UAT coordination"
+      ],
+      "priority_skills": [
+        "requirements gathering",
+        "stakeholder alignment",
+        "process improvement",
+        "UAT",
+        "SQL"
+      ],
+      "tools_or_frameworks": [
+        "Jira",
+        "Confluence",
+        "BPMN",
+        "user stories",
+        "BRD/FRD",
+        "UAT"
+      ],
+      "business_keywords": [
+        "process improvement",
+        "business-tech alignment",
+        "workflow clarity",
+        "stakeholder communication"
+      ],
+      "positioning_angle": "Position yourself as a Business Analyst who improves alignment between business and technical stakeholders.",
+      "proof_points": [
+        "workflow improvement example",
+        "stakeholder alignment example",
+        "Agile delivery example",
+        "documentation quality example"
+      ]
+    },
+    "Project Manager": {
+      "summary": "Project Managers coordinate delivery, manage dependencies, and keep teams aligned on scope, timelines, and outcomes.",
+      "core_responsibilities": [
+        "delivery planning",
+        "stakeholder communication",
+        "risk management",
+        "dependency tracking",
+        "status reporting"
+      ],
+      "priority_skills": [
+        "project planning",
+        "risk management",
+        "stakeholder communication",
+        "Agile delivery",
+        "cross-functional coordination"
+      ],
+      "tools_or_frameworks": [
+        "Jira",
+        "Asana",
+        "MS Project",
+        "Scrum",
+        "Kanban"
+      ],
+      "business_keywords": [
+        "delivery clarity",
+        "risk management",
+        "cross-functional alignment",
+        "execution discipline"
+      ],
+      "positioning_angle": "Position yourself as a Project Manager who improves delivery clarity and cross-functional execution.",
+      "proof_points": [
+        "delivery improvement example",
+        "risk management example",
+        "stakeholder communication example"
+      ]
+    }
+  },
+  "countries": {
+    "United States": {
+      "expectations": [
+        "measurable outcomes",
+        "Agile delivery",
+        "concise communication",
+        "business impact"
+      ],
+      "email_tone": "concise, evidence-based, and outcome-focused"
+    },
+    "United Kingdom": {
+      "expectations": [
+        "governance",
+        "documentation quality",
+        "process clarity",
+        "change control"
+      ],
+      "email_tone": "structured, professional, and evidence-based"
+    },
+    "India": {
+      "expectations": [
+        "delivery reliability",
+        "cross-functional coordination",
+        "clear documentation",
+        "process improvement"
+      ],
+      "email_tone": "professional, clear, and role-focused"
+    },
+    "Canada": {
+      "expectations": [
+        "collaboration",
+        "stakeholder alignment",
+        "clear outcomes",
+        "process quality"
+      ],
+      "email_tone": "professional, collaborative, and concise"
+    }
+  },
+  "industry_refinements": {
+    "fintech": [
+      "regulatory workflows",
+      "process governance",
+      "cross-functional delivery"
+    ],
+    "saas": [
+      "customer workflow clarity",
+      "product-led delivery",
+      "scalable operating processes"
+    ],
+    "healthcare": [
+      "process reliability",
+      "documentation accuracy",
+      "cross-functional coordination"
+    ]
+  },
+  "seniority_refinements": {
+    "senior": [
+      "strategic delivery",
+      "stakeholder influence",
+      "leadership across ambiguity"
+    ],
+    "executive": [
+      "business outcomes",
+      "cross-functional leadership",
+      "strategic alignment"
+    ],
+    "junior": [
+      "execution support",
+      "documentation",
+      "learning agility"
+    ],
+    "entry": [
+      "execution support",
+      "documentation",
+      "learning agility"
+    ]
+  },
+  "things_to_avoid": [
+    "fake metrics",
+    "generic claims",
+    "long emails",
+    "unsupported praise",
+    "irrelevant personal comments"
+  ]
+}

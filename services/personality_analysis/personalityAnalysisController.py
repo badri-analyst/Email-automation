@@ -1,0 +1,168 @@
+"""Professional communication and personality-safe signal analysis controller."""
+
+from schemas.personalityAnalysisSchema import (
+    INSUFFICIENT_DATA,
+    PersonalityAnalysisInput,
+    PersonalityAnalysisOutput,
+)
+from services.linkedin_research.evidence_manager import EvidenceManager
+from services.personality_analysis.communicationStyleAnalyzer import CommunicationStyleAnalyzer
+from services.personality_analysis.personalizationGuidanceBuilder import PersonalizationGuidanceBuilder
+from services.personality_analysis.personalityAnalysisRepository import PersonalityAnalysisRepository
+from services.personality_analysis.personalityAnalysisStatusService import PersonalityAnalysisStatusService
+from services.personality_analysis.persuasionProfileBuilder import PersuasionProfileBuilder
+from services.personality_analysis.professionalMotivatorExtractor import ProfessionalMotivatorExtractor
+from services.personality_analysis.professionalSignalExtractor import ProfessionalSignalExtractor
+from services.personality_analysis.safetyFilterService import SafetyFilterService
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class PersonalityAnalysisController:
+    """Analyze observable professional communication without psychological profiling."""
+
+    def __init__(self, repository: PersonalityAnalysisRepository | None = None, max_attempts: int = 2) -> None:
+        self._evidence = EvidenceManager()
+        self._communication = CommunicationStyleAnalyzer(self._evidence)
+        self._signals = ProfessionalSignalExtractor(self._evidence)
+        self._motivators = ProfessionalMotivatorExtractor(self._evidence)
+        self._persuasion = PersuasionProfileBuilder()
+        self._guidance = PersonalizationGuidanceBuilder()
+        self._safety = SafetyFilterService()
+        self._status = PersonalityAnalysisStatusService()
+        self._repository = repository or PersonalityAnalysisRepository()
+        self._max_attempts = max(1, max_attempts)
+
+    def analyze(self, payload: PersonalityAnalysisInput | dict[str, object]) -> PersonalityAnalysisOutput:
+        """Analyze one prospect with per-prospect failure isolation."""
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                request = payload if isinstance(payload, PersonalityAnalysisInput) else PersonalityAnalysisInput.model_validate(payload)
+                return self._analyze_once(request)
+            except Exception as exc:
+                logger.exception("Personality-safe analysis attempt %s failed", attempt)
+                if attempt == self._max_attempts:
+                    return PersonalityAnalysisOutput(
+                        personality_analysis_status="personality_analysis_failed",
+                        personality_analysis_reason=str(exc) or "Professional communication analysis failed.",
+                        manual_review_flag=True,
+                    )
+        return PersonalityAnalysisOutput(personality_analysis_status="personality_analysis_failed", manual_review_flag=True)
+
+    def _analyze_once(self, request: PersonalityAnalysisInput) -> PersonalityAnalysisOutput:
+        """Run one deterministic analysis pass."""
+        cached = (
+            self._repository.get(request.campaign_id, request.person_name, request.job_title, request.company_name)
+            if request.campaign_id
+            else None
+        )
+        if cached:
+            return cached
+
+        source_text = self._select_text(request)
+        blocked = self._safety.is_blocked(source_text)
+        if blocked:
+            output = self._base_output(
+                request,
+                status="unsafe_analysis_blocked",
+                reason="Unsafe or sensitive inference language was blocked.",
+                source_type="insufficient_data",
+                manual_review=True,
+            )
+            self._cache(request, output)
+            return output
+
+        communication_style = self._communication.analyze(source_text)
+        signals = self._signals.extract(source_text)
+        motivators = self._motivators.extract(source_text)
+        has_any_signal = (
+            communication_style.evidence != INSUFFICIENT_DATA
+            or bool(signals)
+            or bool(motivators)
+        )
+        persuasion = self._persuasion.build(
+            communication_style,
+            motivators,
+            self._evidence.sanitize_text(request.role_country_intelligence),
+        )
+        guidance = self._guidance.build(
+            communication_style,
+            signals,
+            motivators,
+            self._evidence.sanitize_text(request.role_country_intelligence),
+        )
+        manual_review = self._safety.requires_manual_review(
+            communication_style.model_dump_json(),
+            [signal.model_dump() for signal in signals],
+            [motivator.model_dump() for motivator in motivators],
+            persuasion.model_dump_json(),
+            guidance,
+        )
+        status, reason, source_type = self._status.assign(
+            blocked=False,
+            manual_review=manual_review,
+            has_profile=self._evidence.has_evidence(request.linkedin_profile_summary),
+            has_posts=self._evidence.has_evidence(request.linkedin_posts_summary),
+            has_company=self._evidence.has_evidence(request.company_research_summary),
+            has_any_signal=has_any_signal,
+        )
+        output = PersonalityAnalysisOutput(
+            campaign_id=request.campaign_id,
+            prospect_id=request.prospect_id,
+            person_name=request.person_name,
+            job_title=request.job_title,
+            company_name=request.company_name,
+            personality_analysis_status=status,
+            personality_analysis_reason=reason,
+            analysis_source_type=source_type,
+            communication_style=communication_style,
+            professional_behavioral_signals=signals,
+            professional_motivators=motivators,
+            persuasion_profile=persuasion,
+            personalization_guidance=guidance,
+            manual_review_flag=manual_review,
+        )
+        self._cache(request, output)
+        return output
+
+    def _select_text(self, request: PersonalityAnalysisInput) -> str:
+        """Select strongest available professional context without storing raw content."""
+        profile = self._evidence.sanitize_text(request.linkedin_profile_summary)
+        posts = self._evidence.sanitize_text(request.linkedin_posts_summary)
+        company = self._evidence.sanitize_text(request.company_research_summary)
+        role_country = self._evidence.sanitize_text(request.role_country_intelligence)
+
+        if self._evidence.has_evidence(posts):
+            return self._evidence.combine_sources([posts, profile, role_country])
+        if self._evidence.has_evidence(profile):
+            return self._evidence.combine_sources([profile, role_country])
+        if self._evidence.has_evidence(company):
+            return self._evidence.combine_sources([company, role_country])
+        return role_country
+
+    @staticmethod
+    def _base_output(
+        request: PersonalityAnalysisInput,
+        status: str,
+        reason: str,
+        source_type: str,
+        manual_review: bool,
+    ) -> PersonalityAnalysisOutput:
+        """Return stable base output."""
+        return PersonalityAnalysisOutput(
+            campaign_id=request.campaign_id,
+            prospect_id=request.prospect_id,
+            person_name=request.person_name,
+            job_title=request.job_title,
+            company_name=request.company_name,
+            personality_analysis_status=status,
+            personality_analysis_reason=reason,
+            analysis_source_type=source_type,
+            manual_review_flag=manual_review,
+        )
+
+    def _cache(self, request: PersonalityAnalysisInput, output: PersonalityAnalysisOutput) -> None:
+        """Cache duplicate campaign analysis."""
+        if request.campaign_id and request.person_name:
+            self._repository.save(request.campaign_id, request.person_name, request.job_title, request.company_name, output)

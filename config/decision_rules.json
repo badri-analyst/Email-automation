@@ -1,0 +1,56 @@
+{
+  "research_path_priority": [
+    "full_context",
+    "linkedin_role_country",
+    "company_role_country",
+    "role_country_only",
+    "manual_review",
+    "skip"
+  ],
+  "linkedin_ready_statuses": [
+    "ready_for_personalization",
+    "linkedin_profile_analysis_used",
+    "linkedin_posts_analysis_used"
+  ],
+  "linkedin_weak_statuses": [
+    "insufficient_data",
+    "company_fallback_used",
+    "linkedin_missing",
+    "linkedin_invalid",
+    "linkedin_inaccessible",
+    "research_failed"
+  ],
+  "company_ready_statuses": [
+    "ready_for_personalization",
+    "company_basic_data_found",
+    "recent_news_found",
+    "company_values_found",
+    "company_fallback_used"
+  ],
+  "role_country_ready_statuses": [
+    "ready_for_personalization",
+    "role_only_intelligence_used",
+    "industry_refinement_used",
+    "seniority_refinement_used"
+  ],
+  "personality_ready_statuses": [
+    "ready_for_personalization",
+    "linkedin_profile_analysis_used",
+    "linkedin_posts_analysis_used",
+    "company_based_analysis_used"
+  ],
+  "manual_review_statuses": [
+    "manual_review_required",
+    "unsafe_analysis_blocked"
+  ],
+  "forbidden_field_patterns": [
+    "_score",
+    "_rating",
+    "_rank",
+    "percentage_match",
+    "fit_value",
+    "score",
+    "ranking",
+    "rating"
+  ]
+}

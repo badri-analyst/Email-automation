@@ -1,0 +1,21 @@
+{
+  "allowed_tones": [
+    "direct",
+    "warm",
+    "concise",
+    "professional",
+    "technical",
+    "educational",
+    "evidence-based"
+  ],
+  "default_tone": "professional",
+  "tone_map": {
+    "Technical": "technical",
+    "Direct": "direct",
+    "Educational": "educational",
+    "Friendly": "warm",
+    "Professional": "professional",
+    "Formal": "professional",
+    "Neutral": "concise"
+  }
+}

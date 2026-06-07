@@ -1,0 +1,31 @@
+{
+  "decision_statuses": [
+    "ready_for_email_personalization",
+    "ready_for_draft_generation",
+    "ready_for_sending",
+    "blocked_invalid_email",
+    "skipped_duplicate",
+    "company_fallback_selected",
+    "role_country_only_selected",
+    "manual_review_required",
+    "insufficient_data",
+    "smtp_not_configured",
+    "decision_failed"
+  ],
+  "next_actions": [
+    "generate_email",
+    "generate_draft",
+    "send_email",
+    "skip_sending",
+    "skip_duplicate",
+    "run_company_research",
+    "run_role_country_only_personalization",
+    "manual_review",
+    "stop_processing"
+  ],
+  "email_send_permissions": [
+    "allowed",
+    "draft_only",
+    "blocked"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "hallucination_risks": [
+    "I saw your funding",
+    "your recent acquisition",
+    "your Series A",
+    "your recruiter priorities",
+    "I noticed your private"
+  ],
+  "sensitive_assumptions": [
+    "health",
+    "politics",
+    "religion",
+    "age",
+    "ethnicity",
+    "sexuality",
+    "family status"
+  ],
+  "manipulative_language": [
+    "urgent",
+    "you cannot miss",
+    "fear",
+    "pressure",
+    "guilt",
+    "insecurity",
+    "desperate",
+    "last chance"
+  ],
+  "score_fields": [
+    "email_score",
+    "personalization_score",
+    "recruiter_score",
+    "fit_score",
+    "confidence_score",
+    "reply_probability_score"
+  ]
+}

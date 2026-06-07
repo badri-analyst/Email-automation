@@ -1,0 +1,12 @@
+{
+  "max_words": 8,
+  "formulas": {
+    "observation_company": "Quick thought about {company}",
+    "reverse_psychology": "Possibly not relevant",
+    "hiring_signal": "Saw your hiring push",
+    "human_curiosity": "Tiny hiring question",
+    "executive_hook": "Workflow clarity at {company}",
+    "soft_fomo": "Small idea for {company}",
+    "fallback": "Business Analyst interest"
+  }
+}

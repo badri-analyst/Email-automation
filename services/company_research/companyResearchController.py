@@ -1,0 +1,144 @@
+"""Company research controller coordinating modular services."""
+
+from schemas.companyResearchSchema import CompanyResearchInput, CompanyResearchOutput
+from services.company_research.companyNameService import CompanyNameService
+from services.company_research.companyNewsExtractor import CompanyNewsExtractor
+from services.company_research.companyPersonalizationBuilder import CompanyPersonalizationBuilder
+from services.company_research.companyProfileExtractor import CompanyProfileExtractor
+from services.company_research.companyResearchRepository import CompanyResearchRepository
+from services.company_research.companyResearchStatusService import CompanyResearchStatusService
+from services.company_research.companySourceSelector import CompanySourceSelector
+from services.company_research.companyValuesExtractor import CompanyValuesExtractor
+from services.company_research.companyWebsiteService import CompanyWebsiteService
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class CompanyResearchController:
+    """Run company-level research while isolating failures per company."""
+
+    def __init__(self, repository: CompanyResearchRepository | None = None, max_attempts: int = 2) -> None:
+        self._name_service = CompanyNameService()
+        self._website_service = CompanyWebsiteService()
+        self._source_selector = CompanySourceSelector()
+        self._profile_extractor = CompanyProfileExtractor()
+        self._news_extractor = CompanyNewsExtractor()
+        self._values_extractor = CompanyValuesExtractor()
+        self._personalization_builder = CompanyPersonalizationBuilder()
+        self._status_service = CompanyResearchStatusService()
+        self._repository = repository or CompanyResearchRepository()
+        self._max_attempts = max(1, max_attempts)
+
+    def research(self, payload: CompanyResearchInput | dict[str, object]) -> CompanyResearchOutput:
+        """Return deterministic company research output."""
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                research_input = payload if isinstance(payload, CompanyResearchInput) else CompanyResearchInput.model_validate(payload)
+                return self._research_once(research_input)
+            except Exception as exc:
+                logger.exception("Company research attempt %s failed", attempt)
+                if attempt == self._max_attempts:
+                    return CompanyResearchOutput(
+                        company_research_status="company_research_failed",
+                        company_research_reason=str(exc) or "Company research failed.",
+                        manual_review_flag=True,
+                    )
+        return CompanyResearchOutput(company_research_status="company_research_failed", manual_review_flag=True)
+
+    def _research_once(self, research_input: CompanyResearchInput) -> CompanyResearchOutput:
+        """Run one company research pass."""
+        original_name = research_input.company_name
+        cleaned_name = self._name_service.normalize(original_name)
+        cached = self._repository.get(research_input.campaign_id, cleaned_name) if research_input.campaign_id else None
+        if cached:
+            return cached
+
+        if not self._status_service.should_research(research_input.linkedin_research_status, research_input.enrichment_mode):
+            output = CompanyResearchOutput(
+                company_name_original=original_name,
+                company_name_cleaned=cleaned_name,
+                company_website=research_input.company_website,
+                company_linkedin_url=research_input.company_linkedin_url,
+                company_research_status="insufficient_data",
+                company_research_reason="Company research was not requested for this LinkedIn research status.",
+            )
+            self._cache(research_input, cleaned_name, output)
+            return output
+
+        website, website_status = self._website_service.validate(research_input.company_website)
+        if website_status == "missing":
+            website, website_status = self._website_service.infer_from_email_domain(research_input.prospect_email)
+        if website_status == "missing":
+            website, website_status = self._website_service.infer_from_company_name(cleaned_name)
+
+        source_type = self._source_selector.primary_source_type(research_input.approved_sources, website_status)
+        overview_sources = self._source_selector.sources_by_type(
+            research_input.approved_sources,
+            {"official_website", "linkedin_company_page", "search_result", "email_domain"},
+        )
+        culture_sources = self._source_selector.sources_by_type(
+            research_input.approved_sources,
+            {"official_website", "careers_page", "linkedin_company_page"},
+        )
+        news_sources = self._source_selector.sources_by_type(
+            research_input.approved_sources,
+            {"company_news", "official_website", "linkedin_company_page", "careers_page"},
+        )
+
+        overview = self._profile_extractor.overview(overview_sources)
+        industry = self._profile_extractor.industry(overview_sources)
+        products_services = self._profile_extractor.products_services(overview_sources)
+        values_summary = self._values_extractor.values_summary(culture_sources)
+        updates = self._news_extractor.recent_updates(news_sources)
+        growth_signal = self._news_extractor.growth_or_hiring_signal(news_sources + culture_sources)
+        role_relevance = self._personalization_builder.role_relevance(
+            research_input.target_role,
+            overview,
+            products_services,
+        )
+        country_relevance = self._personalization_builder.country_relevance(
+            research_input.target_country,
+            growth_signal,
+        )
+        hooks = self._personalization_builder.hooks(updates, values_summary, growth_signal, role_relevance)
+        email_angle = self._personalization_builder.email_angle(hooks, role_relevance)
+        manual_review_flag = website_status == "invalid"
+        status, reason = self._status_service.assign(
+            website_status=website_status,
+            overview=overview,
+            values_summary=values_summary,
+            updates=updates,
+            growth_signal=growth_signal,
+            linkedin_research_status=research_input.linkedin_research_status,
+            manual_review_flag=manual_review_flag,
+        )
+
+        output = CompanyResearchOutput(
+            company_name_original=original_name,
+            company_name_cleaned=cleaned_name,
+            company_website=website,
+            company_website_status=website_status,
+            company_linkedin_url=research_input.company_linkedin_url,
+            company_research_status=status,
+            company_research_reason=reason,
+            company_research_source_type=source_type,
+            company_overview=overview,
+            industry=industry,
+            products_services_summary=products_services,
+            company_values_summary=values_summary,
+            recent_company_updates=updates,
+            growth_or_hiring_signal=growth_signal,
+            role_relevance_context=role_relevance,
+            country_relevance_context=country_relevance,
+            company_personalization_hooks=hooks,
+            company_email_angle=email_angle,
+            manual_review_flag=manual_review_flag,
+        )
+        self._cache(research_input, cleaned_name, output)
+        return output
+
+    def _cache(self, research_input: CompanyResearchInput, cleaned_name: str, output: CompanyResearchOutput) -> None:
+        """Cache output when campaign context exists."""
+        if research_input.campaign_id and cleaned_name:
+            self._repository.save(research_input.campaign_id, cleaned_name, output)

@@ -1,0 +1,102 @@
+"""Retry-safe LinkedIn research pipeline orchestration."""
+
+from pydantic import ValidationError
+
+from schemas.research_schema import LinkedInResearchOutput, ResearchInput
+from services.linkedin_research.communication_analyzer import CommunicationAnalyzer
+from services.linkedin_research.evidence_manager import EvidenceManager
+from services.linkedin_research.insight_generator import InsightGenerator
+from services.linkedin_research.motivator_analyzer import MotivatorAnalyzer
+from services.linkedin_research.persuasion_generator import PersuasionGenerator
+from services.linkedin_research.profile_analyzer import ProfileAnalyzer
+from services.linkedin_research.status_manager import ResearchStatusManager
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class LinkedInResearchPipeline:
+    """Produce deterministic research JSON for downstream email personalization."""
+
+    def __init__(
+        self,
+        evidence_manager: EvidenceManager | None = None,
+        max_attempts: int = 2,
+    ) -> None:
+        self._evidence = evidence_manager or EvidenceManager()
+        self._profile_analyzer = ProfileAnalyzer(self._evidence)
+        self._communication_analyzer = CommunicationAnalyzer(self._evidence)
+        self._motivator_analyzer = MotivatorAnalyzer(self._evidence)
+        self._persuasion_generator = PersuasionGenerator()
+        self._insight_generator = InsightGenerator()
+        self._status_manager = ResearchStatusManager()
+        self._max_attempts = max(1, max_attempts)
+
+    def research(self, payload: ResearchInput | dict[str, object]) -> LinkedInResearchOutput:
+        """Run research analysis with per-prospect failure isolation."""
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                research_input = payload if isinstance(payload, ResearchInput) else ResearchInput.model_validate(payload)
+                return self._research_once(research_input)
+            except ValidationError as exc:
+                logger.warning("Research input validation failed: %s", exc)
+                return self._failed_output("Research input failed schema validation.")
+            except Exception as exc:
+                logger.exception("LinkedIn research attempt %s failed", attempt)
+                if attempt == self._max_attempts:
+                    return self._failed_output(str(exc))
+
+        return self._failed_output("Research failed.")
+
+    def research_many(self, payloads: list[ResearchInput | dict[str, object]]) -> list[LinkedInResearchOutput]:
+        """Run research analysis for a batch while isolating prospect failures."""
+        return [self.research(payload) for payload in payloads]
+
+    def _research_once(self, research_input: ResearchInput) -> LinkedInResearchOutput:
+        """Run one deterministic research pass."""
+        person_evidence = self._profile_analyzer.person_evidence(research_input)
+        company_evidence = self._profile_analyzer.company_evidence(research_input)
+        status, reason = self._status_manager.assign(research_input, person_evidence, company_evidence)
+
+        if status in {"linkedin_missing", "linkedin_invalid", "linkedin_inaccessible"}:
+            return LinkedInResearchOutput(
+                overview=self._profile_analyzer.overview(research_input),
+                research_status=status,
+                research_reason=reason,
+            )
+
+        analysis_text = person_evidence or company_evidence
+        overview = self._profile_analyzer.overview(research_input)
+        updates = self._profile_analyzer.recent_updates(research_input)
+        communication = self._communication_analyzer.analyze_style(analysis_text)
+        behavioral_signals = self._communication_analyzer.behavioral_signals(analysis_text)
+        motivators = self._motivator_analyzer.analyze(analysis_text)
+        persuasion = self._persuasion_generator.generate(
+            communication.tone,
+            motivators,
+            has_company_fallback=status == "company_fallback_used",
+        )
+        insights = self._insight_generator.generate(
+            role=overview.role,
+            company=overview.company,
+            communication_style=communication,
+            motivators=motivators,
+            updates=updates,
+        )
+
+        return LinkedInResearchOutput(
+            overview=overview,
+            recent_news_or_updates=updates,
+            communication_style=communication,
+            professional_behavioral_signals=behavioral_signals,
+            professional_motivators=motivators,
+            persuasion_profile=persuasion,
+            personalization_insights=insights,
+            research_status=status,
+            research_reason=reason,
+        )
+
+    @staticmethod
+    def _failed_output(reason: str) -> LinkedInResearchOutput:
+        """Return a schema-valid technical failure output."""
+        return LinkedInResearchOutput(research_status="research_failed", research_reason=reason or "Research failed.")

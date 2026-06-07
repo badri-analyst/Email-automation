@@ -1,0 +1,25 @@
+-- =============================================================================
+-- Phase 5: Drop legacy gmail_credentials table
+--
+-- Safe to run only after:
+--   • Phase 1 migration has been applied (gmail_oauth_accounts exists)
+--   • Phase 2-4 backend + frontend have been deployed
+--   • All users have reconnected via the new OAuth flow OR the Phase 1 back-fill
+--     successfully copied their credentials into gmail_oauth_accounts
+--
+-- Before running, verify no active credentials remain only in the old table:
+--
+--   select gc.gmail_address, gc.candidate_id
+--   from gmail_credentials gc
+--   left join gmail_oauth_accounts goa
+--     on goa.user_email = gc.candidate_id
+--     and goa.gmail_address = gc.gmail_address
+--     and goa.is_active = true
+--   where goa.id is null;
+--
+-- If that query returns rows, those users still depend on the old table.
+-- Ask them to reconnect their Gmail before dropping.
+-- =============================================================================
+
+-- Drop the table and all its indexes + constraints in one statement.
+drop table if exists gmail_credentials;

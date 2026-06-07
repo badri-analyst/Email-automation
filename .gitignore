@@ -1,0 +1,11 @@
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+frontend/dist/
+.tools/
+.env
+frontend/.env
+backend/.env
+__pycache__/
+.pytest_cache/
+pytest-cache-files-*/

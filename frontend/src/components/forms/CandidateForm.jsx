@@ -1,0 +1,179 @@
+import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { getJson, postJson } from '../../services/api.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { useOutreach } from '../../context/OutreachContext.jsx';
+import { isEmail, isLinkedInProfile, isYouTube, sanitizeText } from '../../utils/validators.js';
+import Button from '../ui/Button.jsx';
+import FileDropzone from '../upload/FileDropzone.jsx';
+import GmailAccountsManager from '../gmail/GmailAccountsManager.jsx';
+
+const initial = {
+  fullName: '',
+  email: '',
+  linkedInUrl: '',
+  youtubeUrl: '',
+  whyRelevant: '',
+  githubUrl: '',
+  portfolioUrl: '',
+  currentRole: '',
+  skills: '',
+  preferredCountries: '',
+  resumeSummary: '',
+};
+
+export default function CandidateForm() {
+  const { state, dispatch } = useOutreach();
+  const { user } = useAuth();
+  const [form, setForm] = useState({ ...initial, ...state.candidate });
+  const [resume, setResume] = useState(null);
+  const [gmailAccounts, setGmailAccounts] = useState([]);
+  const { loading, run } = useAsyncAction();
+
+  useEffect(() => {
+    if (!user?.email) {
+      setForm(initial);
+      setGmailAccounts([]);
+      dispatch({ type: 'SET_CANDIDATE', payload: {} });
+      return undefined;
+    }
+
+    let cancelled = false;
+    async function loadProfile() {
+      try {
+        const data = await getJson('/candidate-profile');
+        const profile = data.profile || {};
+        const next = {
+          ...initial,
+          ...profile,
+          fullName: profile.fullName || user.name || '',
+          email: user.email,
+        };
+        if (cancelled) return;
+        setForm(next);
+        setGmailAccounts(data.gmailAccounts || []);
+        dispatch({ type: 'SET_CANDIDATE', payload: next });
+      } catch (error) {
+        toast.error(error?.response?.data?.error || 'Could not load saved candidate profile.');
+      }
+    }
+
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
+
+  // After returning from the Gmail OAuth redirect, reload the accounts list.
+  useEffect(() => {
+    if (!sessionStorage.getItem('gmail_just_connected')) return;
+    sessionStorage.removeItem('gmail_just_connected');
+    getJson('/gmail/accounts')
+      .then((data) => setGmailAccounts(data.gmailAccounts || []))
+      .catch(() => {});
+  }, []);
+
+  function update(key, value) {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    dispatch({ type: 'SET_CANDIDATE', payload: next });
+  }
+
+  function validate() {
+    const email = String(user?.email || form.email || '').trim().toLowerCase();
+    if (form.fullName.trim().length < 2) return 'Name must be at least 2 characters.';
+    if (!isEmail(email)) return 'Enter a valid email address.';
+    if (!isLinkedInProfile(form.linkedInUrl)) return 'LinkedIn URL must be a linkedin.com/in/ profile.';
+    if (!isYouTube(form.youtubeUrl)) return 'Enter a valid YouTube URL or leave it blank.';
+    if (form.whyRelevant.length > 900) return 'Why relevant summary must stay under 900 characters.';
+    return '';
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    const error = validate();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    const payload = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, sanitizeText(value)]));
+    payload.email = String(user?.email || payload.email || '').trim().toLowerCase();
+    payload.fullName = payload.fullName || user?.name || '';
+    payload.resumeFileName = resume?.name || '';
+    await run(async () => {
+      const candidateAssets = await postJson('/candidate-assets', {
+        ...payload,
+        campaign_id: state.campaign.id,
+        candidate_id: payload.email,
+      });
+      toast.success('Candidate profile saved.');
+      return candidateAssets;
+    });
+  }
+
+  return (
+    <form className="grid gap-5 lg:grid-cols-2" onSubmit={submit}>
+      {[
+        ['fullName', 'Full Name', 'text'],
+        ['email', 'Email Address', 'email'],
+        ['linkedInUrl', 'LinkedIn URL', 'url'],
+        ['youtubeUrl', 'YouTube Video Link', 'url'],
+        ['githubUrl', 'GitHub URL', 'url'],
+        ['portfolioUrl', 'Portfolio URL', 'url'],
+        ['currentRole', 'Current Role', 'text'],
+        ['skills', 'Skills', 'text'],
+        ['preferredCountries', 'Preferred Countries', 'text'],
+      ].map(([key, label, type]) => (
+        <label key={key} className="block">
+          <span className="text-sm font-medium text-slate-700">{label}</span>
+          <input
+            type={type}
+            value={key === 'email' && user?.email ? user.email : (form[key] || '')}
+            onChange={(event) => update(key, event.target.value)}
+            readOnly={key === 'email' && Boolean(user?.email)}
+            className={`focus-ring mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm ${key === 'email' && user?.email ? 'bg-slate-50 text-slate-500' : 'bg-white'}`}
+          />
+        </label>
+      ))}
+
+      {/* Gmail OAuth2 multi-account manager */}
+      <div className="block lg:col-span-2">
+        <GmailAccountsManager
+          accounts={gmailAccounts}
+          onAccountsChange={setGmailAccounts}
+          campaignId={state.campaign?.id}
+        />
+      </div>
+
+      <label className="block lg:col-span-2">
+        <span className="text-sm font-medium text-slate-700">Why I May Be Relevant</span>
+        <textarea
+          value={form.whyRelevant}
+          maxLength={900}
+          onChange={(event) => update('whyRelevant', event.target.value)}
+          className="focus-ring mt-1 min-h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          placeholder="Keep this factual: workflow clarity, stakeholder alignment, delivery coordination..."
+        />
+      </label>
+      <label className="block lg:col-span-2">
+        <span className="text-sm font-medium text-slate-700">Resume Summary</span>
+        <textarea
+          value={form.resumeSummary}
+          onChange={(event) => update('resumeSummary', event.target.value)}
+          className="focus-ring mt-1 min-h-24 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+        />
+      </label>
+      <div className="lg:col-span-2">
+        <FileDropzone
+          accept={{ 'application/pdf': ['.pdf'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }}
+          onFile={setResume}
+          label={resume ? resume.name : 'Upload resume PDF/DOCX'}
+        />
+      </div>
+      <div className="lg:col-span-2">
+        <Button disabled={loading}>{loading ? 'Saving...' : 'Save candidate profile'}</Button>
+      </div>
+    </form>
+  );
+}
