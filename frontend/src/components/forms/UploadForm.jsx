@@ -23,7 +23,7 @@ export default function UploadForm() {
     if (data.campaign) {
       dispatch({ type: 'SET_CURRENT_CAMPAIGN', payload: { id: data.campaign.id, name: data.campaign.campaignName } });
     }
-    navigate('/campaigns');
+    navigate('/pipeline');
   }
 
   return (
