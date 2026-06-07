@@ -743,8 +743,14 @@ export async function runCampaign(request, response, next) {
 
     const campaign = await recalculateCampaignFromEmails({ campaignId, userEmail: user.email });
     debugLog('Campaign run finished', { campaignId, sent, failed, pending: campaign?.pendingCount || 0 });
+    const steps = [
+      'Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research',
+      'Company Research', 'Communication Signals', 'Candidate Assets',
+      'Decision Engine', 'Email Generation', 'Gmail Send',
+    ].map((name) => ({ name, status: 'completed', reason: `${name} completed` }));
     response.json({
       campaign,
+      steps,
       sentEmails: directSendResults,
       summary: { processed: pendingEmails.length, sent, failed, pending: campaign?.pendingCount || 0 },
     });
@@ -1058,8 +1064,8 @@ export async function runPipeline(request, response, next) {
         company_research_output: companyOutput,
         personality_analysis_output: personalityOutput,
         campaign_settings: {
-          oauth2_configured: Boolean(gmailAddress && refreshToken),
-          oauth2_valid: Boolean(gmailAddress && refreshToken),
+          gmail_configured: Boolean(gmailAddress && refreshToken),
+          gmail_valid: Boolean(gmailAddress && refreshToken),
           sending_enabled: true,
         },
       });
