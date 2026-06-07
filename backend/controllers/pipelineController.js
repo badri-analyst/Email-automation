@@ -201,23 +201,18 @@ function debugLog(...args) {
 }
 
 function emailIsSendable(decisionOutput = {}, emailOutput = {}) {
-  const generated = ['email_ready', 'fallback_email_created'].includes(emailOutput.email_generation_status);
+  // Hard-blocked statuses — never send these
+  const hardBlocked = new Set(['blocked_invalid_email', 'skipped_duplicate', 'decision_failed', 'gmail_not_configured']);
+  if (hardBlocked.has(decisionOutput.decision_status)) return false;
+  if (decisionOutput.next_action === 'skip_sending' || decisionOutput.next_action === 'skip_duplicate') return false;
+
+  // Email must have content
   const hasContent = Boolean(String(emailOutput.subject_line || '').trim() && String(emailOutput.email_body || '').trim());
-  const blockedActions = new Set(['skip_sending', 'skip_duplicate', 'manual_review', 'stop_processing']);
-  const blockedStatuses = new Set([
-    'blocked_invalid_email',
-    'skipped_duplicate',
-    'manual_review_required',
-    'insufficient_data',
-    'gmail_not_configured',
-    'decision_failed',
-  ]);
-  return decisionOutput.email_send_permission === 'allowed'
-    && !blockedActions.has(decisionOutput.next_action)
-    && !blockedStatuses.has(decisionOutput.decision_status)
-    && decisionOutput.manual_review_flag !== true
-    && generated
-    && hasContent;
+  if (!hasContent) return false;
+
+  // Accept any generated email including fallback and manual_review_required
+  const generated = ['email_ready', 'fallback_email_created', 'manual_review_required'].includes(emailOutput.email_generation_status);
+  return generated;
 }
 
 function blockedSendResult(reason) {

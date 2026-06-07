@@ -61,11 +61,15 @@ def _get_base_url() -> str:
 
 
 def _get_model(module_name: str) -> str:
-    """Return the model name for this module."""
+    """Return the model name for this module.
+    Per-module model takes priority. AI_MODEL is only used when no
+    module-specific model is defined (e.g. for unknown/custom modules).
+    """
     config = MODULE_CONFIG.get(module_name, {})
     return (
-        os.environ.get("AI_MODEL", "")
-        or config.get("model", "gpt-4o")
+        config.get("model", "")
+        or os.environ.get("AI_MODEL", "")
+        or "gpt-4o"
     )
 
 
