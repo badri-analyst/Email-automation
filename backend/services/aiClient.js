@@ -65,10 +65,11 @@ function getBaseUrl(moduleName) {
 
 function getModel(moduleName, requestedModel) {
   const config = getModuleConfig(moduleName);
+  // Per-module model takes priority over global AI_MODEL override
   return requestedModel
     || process.env[config.modelEnv]
-    || process.env.AI_MODEL
     || config.defaultModel
+    || process.env.AI_MODEL
     || DEFAULT_MODEL;
 }
 

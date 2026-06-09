@@ -553,7 +553,8 @@ export async function runCampaign(request, response, next) {
     }
 
     await recalculateCampaignFromEmails({ campaignId, userEmail: user.email, status: CAMPAIGN_STATUSES.processing });
-    const candidate = await loadCandidateProfile(user.email);
+    let candidate = {};
+    try { candidate = await loadCandidateProfile(user.email) || {}; } catch { candidate = {}; }
 
     // Resolve which Gmail account to send from.
     // 1. Caller can pass gmail_address in the request body to pick a specific account.
