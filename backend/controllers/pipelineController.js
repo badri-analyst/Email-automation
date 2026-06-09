@@ -582,145 +582,166 @@ export async function runCampaign(request, response, next) {
       return;
     }
 
-    const directSendResults = [];
-    let sent = 0;
-    let failed = 0;
+    // Respond immediately — client will poll /campaigns/:id for live progress.
+    const steps = [
+      'Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research',
+      'Company Research', 'Communication Signals', 'Candidate Assets',
+      'Decision Engine', 'Email Generation', 'Gmail Send',
+    ].map((name) => ({ name, status: 'completed', reason: `${name} completed` }));
+    response.json({
+      campaign: mapCampaign(campaignResult.data),
+      steps,
+      sentEmails: [],
+      summary: { processed: pendingEmails.length, sent: 0, failed: 0, pending: pendingEmails.length },
+      processing: true,
+      message: `Processing ${pendingEmails.length} emails in the background. Poll /campaigns/${campaignId} for live progress.`,
+    });
 
-    for (const [index, record] of pendingEmails.entries()) {
-      const row = record.row_data || {};
-      const prospectId = `prospect-${index + 1}`;
-      const targetRole = row.role || candidate.currentRole || 'Business Analyst';
-      const targetCountry = row.country || candidate.preferredCountries || '';
-      const companyName = row.company || record.company_name || '';
-      const recipientEmail = record.recipient_email || row.email;
+    // Process emails in background — do NOT await this.
+    processEmailsInBackground({
+      supabase,
+      campaignId,
+      userEmail: user.email,
+      pendingEmails,
+      candidate,
+      gmailAddress,
+      refreshToken,
+    }).catch((err) => {
+      debugLog('Background campaign processing error', { campaignId, error: err.message });
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
-      let decisionOutput = {};
-      let emailOutput = {};
-      let sendOutput;
-      try {
-        const roleCountryInput = {
-          campaign_id: campaignId,
-          prospect_id: prospectId,
-          target_role: targetRole,
-          target_country: targetCountry,
-          candidate_positioning: candidate.whyRelevant,
-        };
-        const roleCountryFallback = await runPython('role-country', roleCountryInput);
-        const roleCountryOutput = await enhanceRoleCountry(roleCountryInput, roleCountryFallback);
+// ---------------------------------------------------------------------------
+// Background email processing — runs after HTTP response is sent.
+// Processes up to BATCH_CONCURRENCY emails at a time so the server can
+// handle multiple campaigns simultaneously without running out of memory.
+// ---------------------------------------------------------------------------
+const BATCH_CONCURRENCY = 3;
 
-        const linkedinInput = {
-          full_name: row.name || record.recipient_name,
-          role_title: targetRole,
-          company_name: companyName,
-          normalized_company_name: companyName,
-          linkedin_url: row.linkedin_url || candidate.linkedInUrl || '',
-          profile_summary: candidate.resumeSummary || '',
-        };
-        const linkedinFallback = await runPython('linkedin-research', linkedinInput);
-        const linkedinOutput = await enhanceLinkedinResearch(linkedinInput, linkedinFallback);
+async function processEmailsInBackground({ supabase, campaignId, userEmail, pendingEmails, candidate, gmailAddress, refreshToken }) {
+  debugLog('Background processing started', { campaignId, total: pendingEmails.length });
 
-        const companyInput = {
-          campaign_id: campaignId,
-          prospect_id: prospectId,
-          company_name: companyName,
-          company_website: row.company_website || row.website || '',
-          target_role: targetRole,
-          target_country: targetCountry,
-          linkedin_research_status: linkedinOutput.research_status,
-          approved_sources: [],
-        };
-        const companyFallback = await runPython('company-research', companyInput);
-        const companyOutput = await enhanceCompanyResearch(companyInput, companyFallback);
+  async function processSingleEmail(record, index) {
+    const row = record.row_data || {};
+    const prospectId = `prospect-${index + 1}`;
+    const targetRole = row.role || candidate.currentRole || 'Business Analyst';
+    const targetCountry = row.country || candidate.preferredCountries || '';
+    const companyName = row.company || record.company_name || '';
+    const recipientEmail = record.recipient_email || row.email;
 
-        const personalityInput = {
-          campaign_id: campaignId,
-          prospect_id: prospectId,
-          person_name: row.name || record.recipient_name,
-          job_title: targetRole,
-          company_name: companyName,
-          linkedin_profile_summary: candidate.resumeSummary || '',
-          company_research_summary: companyOutput.company_overview,
-          role_country_intelligence: roleCountryOutput.email_positioning_angle,
-        };
-        const personalityFallback = await runPython('personality-analysis', personalityInput);
-        const personalityOutput = await enhanceCommunicationSignal(personalityInput, personalityFallback);
-
-        decisionOutput = await runPython('decision-engine', {
-          campaign_id: campaignId,
-          prospect_id: prospectId,
-          cleaning_output: { ...row, full_name: row.name || record.recipient_name, role_title: targetRole, company_name: companyName },
-          role_country_output: roleCountryOutput,
-          linkedin_research_output: linkedinOutput,
-          company_research_output: companyOutput,
-          personality_analysis_output: personalityOutput,
-          campaign_settings: {
-            gmail_configured: true,
-            gmail_valid: true,
-            sending_enabled: true,
-          },
-        });
-        const emailInput = {
-          campaign_id: campaignId,
-          prospect_id: prospectId,
-          final_personalization_payload: decisionOutput.final_personalization_payload,
-        };
-        const emailFallback = await runPython('email-personalization', emailInput);
-        emailOutput = await enhanceEmailWriting(emailInput, emailFallback);
-        if (!emailIsSendable(decisionOutput, emailOutput)) {
-          sendOutput = blockedSendResult(
-            decisionOutput.email_send_block_reason
-              || decisionOutput.decision_reason
-              || emailOutput.email_generation_reason
-              || 'Email was generated but did not pass direct-send safety gates.',
-          );
-        } else {
-          sendOutput = await sendEmailWithRetry({
-            gmailAddress,
-            refreshToken,
-            to: recipientEmail,
-            subject: emailOutput.subject_line,
-            body: emailOutput.email_body,
-          });
-        }
-      } catch (error) {
-        sendOutput = {
-          send_status: 'send_failed',
-          provider_message_id: '',
-          send_reason: error.message || 'Email send failed.',
-        };
-      }
-
-      const sentSuccessfully = sendOutput.send_status === 'sent';
-      if (sentSuccessfully) sent += 1;
-      else failed += 1;
-
-      await assertSupabaseWrite(await supabase
-        .from('campaign_emails')
-        .update({
-          subject: emailOutput.subject_line || '',
-          email_body: emailOutput.email_body || '',
-          status: sentSuccessfully ? 'Sent' : 'Failed',
-          error_message: sentSuccessfully ? null : sendOutput.send_reason,
-          sent_at: sentSuccessfully ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', record.id)
-        .eq('user_email', user.email), 'Supabase campaign email send result update failed');
-
-      const resultPayload = {
-        ...emailOutput,
+    let decisionOutput = {};
+    let emailOutput = {};
+    let sendOutput;
+    try {
+      const roleCountryInput = {
         campaign_id: campaignId,
         prospect_id: prospectId,
-        recipient_email: recipientEmail,
-        send_status: sendOutput.send_status,
-        send_reason: sendOutput.send_reason,
-        provider_message_id: sendOutput.provider_message_id,
-        sent_at: sentSuccessfully ? new Date().toISOString() : null,
+        target_role: targetRole,
+        target_country: targetCountry,
+        candidate_positioning: candidate.whyRelevant,
       };
-      directSendResults.push(resultPayload);
-      await assertSupabaseWrite(await supabase.from('email_send_results').insert({
+      const roleCountryFallback = await runPython('role-country', roleCountryInput);
+      const roleCountryOutput = await enhanceRoleCountry(roleCountryInput, roleCountryFallback);
+
+      const linkedinInput = {
+        full_name: row.name || record.recipient_name,
+        role_title: targetRole,
+        company_name: companyName,
+        normalized_company_name: companyName,
+        linkedin_url: row.linkedin_url || candidate.linkedInUrl || '',
+        profile_summary: candidate.resumeSummary || '',
+      };
+      const linkedinFallback = await runPython('linkedin-research', linkedinInput);
+      const linkedinOutput = await enhanceLinkedinResearch(linkedinInput, linkedinFallback);
+
+      const companyInput = {
         campaign_id: campaignId,
-        user_email: user.email,
+        prospect_id: prospectId,
+        company_name: companyName,
+        company_website: row.company_website || row.website || '',
+        target_role: targetRole,
+        target_country: targetCountry,
+        linkedin_research_status: linkedinOutput.research_status,
+        approved_sources: [],
+      };
+      const companyFallback = await runPython('company-research', companyInput);
+      const companyOutput = await enhanceCompanyResearch(companyInput, companyFallback);
+
+      const personalityInput = {
+        campaign_id: campaignId,
+        prospect_id: prospectId,
+        person_name: row.name || record.recipient_name,
+        job_title: targetRole,
+        company_name: companyName,
+        linkedin_profile_summary: candidate.resumeSummary || '',
+        company_research_summary: companyOutput.company_overview,
+        role_country_intelligence: roleCountryOutput.email_positioning_angle,
+      };
+      const personalityFallback = await runPython('personality-analysis', personalityInput);
+      const personalityOutput = await enhanceCommunicationSignal(personalityInput, personalityFallback);
+
+      decisionOutput = await runPython('decision-engine', {
+        campaign_id: campaignId,
+        prospect_id: prospectId,
+        cleaning_output: { ...row, full_name: row.name || record.recipient_name, role_title: targetRole, company_name: companyName },
+        role_country_output: roleCountryOutput,
+        linkedin_research_output: linkedinOutput,
+        company_research_output: companyOutput,
+        personality_analysis_output: personalityOutput,
+        campaign_settings: { gmail_configured: true, gmail_valid: true, sending_enabled: true },
+      });
+
+      const emailInput = {
+        campaign_id: campaignId,
+        prospect_id: prospectId,
+        final_personalization_payload: decisionOutput.final_personalization_payload,
+      };
+      const emailFallback = await runPython('email-personalization', emailInput);
+      emailOutput = await enhanceEmailWriting(emailInput, emailFallback);
+
+      if (!emailIsSendable(decisionOutput, emailOutput)) {
+        sendOutput = blockedSendResult(
+          decisionOutput.email_send_block_reason
+            || decisionOutput.decision_reason
+            || emailOutput.email_generation_reason
+            || 'Email was generated but did not pass direct-send safety gates.',
+        );
+      } else {
+        sendOutput = await sendEmailWithRetry({
+          gmailAddress,
+          refreshToken,
+          to: recipientEmail,
+          subject: emailOutput.subject_line,
+          body: emailOutput.email_body,
+        });
+      }
+    } catch (error) {
+      sendOutput = {
+        send_status: 'send_failed',
+        provider_message_id: '',
+        send_reason: error.message || 'Email send failed.',
+      };
+    }
+
+    const sentSuccessfully = sendOutput.send_status === 'sent';
+
+    // Write result back to Supabase immediately so polling sees live progress.
+    try {
+      await supabase.from('campaign_emails').update({
+        subject: emailOutput.subject_line || '',
+        email_body: emailOutput.email_body || '',
+        status: sentSuccessfully ? 'Sent' : 'Failed',
+        error_message: sentSuccessfully ? null : sendOutput.send_reason,
+        sent_at: sentSuccessfully ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', record.id).eq('user_email', userEmail);
+
+      await supabase.from('email_send_results').insert({
+        campaign_id: campaignId,
+        user_email: userEmail,
         prospect_id: prospectId,
         recipient_email: recipientEmail,
         subject_line: emailOutput.subject_line || '',
@@ -729,30 +750,26 @@ export async function runCampaign(request, response, next) {
         send_status: sendOutput.send_status,
         send_reason: sendOutput.send_reason,
         provider_message_id: sendOutput.provider_message_id,
-        sent_at: resultPayload.sent_at,
-        structured_output: resultPayload,
-      }), 'Supabase sent email result save failed');
+        sent_at: sentSuccessfully ? new Date().toISOString() : null,
+        structured_output: { ...emailOutput, send_status: sendOutput.send_status },
+      });
 
-      debugLog('Campaign email send result', { campaignId, recipientEmail, status: sendOutput.send_status });
-      await recalculateCampaignFromEmails({ campaignId, userEmail: user.email, status: CAMPAIGN_STATUSES.processing });
+      await recalculateCampaignFromEmails({ campaignId, userEmail, status: CAMPAIGN_STATUSES.processing });
+    } catch (dbErr) {
+      debugLog('DB write error for email result', { campaignId, recipientEmail, error: dbErr.message });
     }
 
-    const campaign = await recalculateCampaignFromEmails({ campaignId, userEmail: user.email });
-    debugLog('Campaign run finished', { campaignId, sent, failed, pending: campaign?.pendingCount || 0 });
-    const steps = [
-      'Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research',
-      'Company Research', 'Communication Signals', 'Candidate Assets',
-      'Decision Engine', 'Email Generation', 'Gmail Send',
-    ].map((name) => ({ name, status: 'completed', reason: `${name} completed` }));
-    response.json({
-      campaign,
-      steps,
-      sentEmails: directSendResults,
-      summary: { processed: pendingEmails.length, sent, failed, pending: campaign?.pendingCount || 0 },
-    });
-  } catch (error) {
-    next(error);
+    debugLog('Email processed', { campaignId, recipientEmail, status: sendOutput.send_status });
   }
+
+  // Process in batches of BATCH_CONCURRENCY to avoid overwhelming the server.
+  for (let i = 0; i < pendingEmails.length; i += BATCH_CONCURRENCY) {
+    const batch = pendingEmails.slice(i, i + BATCH_CONCURRENCY);
+    await Promise.all(batch.map((record, batchIdx) => processSingleEmail(record, i + batchIdx)));
+  }
+
+  await recalculateCampaignFromEmails({ campaignId, userEmail });
+  debugLog('Background processing complete', { campaignId });
 }
 
 export async function validation(request, response) {

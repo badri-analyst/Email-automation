@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { getJson, postJson } from '../services/api.js';
 import { useOutreach } from '../context/OutreachContext.jsx';
 import Card from '../components/ui/Card.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
 
-const CAMPAIGN_RUN_TIMEOUT_MS = 30 * 60 * 1000;
+const POLL_INTERVAL_MS = 3000; // poll Supabase every 3 seconds for live progress
 
 const STEP_NAMES = [
   'Validation',
@@ -19,9 +19,6 @@ const STEP_NAMES = [
   'Email Generation',
   'Gmail Send',
 ];
-
-// Approximate time each step takes (ms) — used for animated progress only
-const STEP_DURATIONS = [800, 800, 2000, 3000, 2500, 2000, 1500, 1500, 3000, 2000];
 
 function StepCard({ name, index, status, reason, processed, total }) {
   const isActive = status === 'active';
@@ -76,12 +73,18 @@ export default function PipelineExecution() {
   const [summary, setSummary] = useState({ processed: 0, sent: 0, failed: 0 });
   const [activeCampaign, setActiveCampaign] = useState(null);
   const ran = useRef(false);
+  const pollRef = useRef(null);
+  const campaignIdRef = useRef(null);
 
-  // Load campaigns and auto-start
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
     loadAndRun();
+  }, []);
+
+  // Cleanup poll on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
   async function loadAndRun() {
@@ -107,91 +110,97 @@ export default function PipelineExecution() {
     }
 
     setActiveCampaign(selected);
-    await runCampaign(selected);
+    await startCampaign(selected);
   }
 
-  async function runCampaign(campaign) {
+  async function startCampaign(campaign) {
     const total = campaign.pendingCount || campaign.totalEmails || 0;
     const retryFailed = campaign.pendingCount === 0 && campaign.failedCount > 0;
+
     setRunning(true);
     setDone(false);
-    setStepStatuses(STEP_NAMES.map(() => ({ status: 'pending', reason: 'Waiting for input', processed: 0 })));
+    setSummary({ processed: 0, sent: 0, failed: total });
+    setStepStatuses(STEP_NAMES.map((_, i) =>
+      i === 0 ? { status: 'active', reason: 'Processing…', processed: 0 }
+              : { status: 'pending', reason: 'Waiting for input', processed: 0 },
+    ));
 
-    // Animate steps while API runs in background
-    const apiPromise = postJson(
-      `/campaigns/${campaign.id}/run`,
-      { retryFailed },
-      { timeout: CAMPAIGN_RUN_TIMEOUT_MS },
-    );
+    campaignIdRef.current = campaign.id;
 
-    // Animate each step sequentially
-    let elapsed = 0;
-    for (let i = 0; i < STEP_NAMES.length; i++) {
-      const duration = STEP_DURATIONS[i];
-      // Mark step as active
-      setStepStatuses((prev) => prev.map((s, idx) =>
-        idx === i ? { ...s, status: 'active', processed: 0 } : s,
-      ));
-      // Animate progress within the step
-      const ticks = 10;
-      for (let t = 1; t <= ticks; t++) {
-        await sleep(duration / ticks);
-        const processed = Math.round((t / ticks) * total);
-        setStepStatuses((prev) => prev.map((s, idx) =>
-          idx === i ? { ...s, processed } : s,
-        ));
-      }
-    }
-
-    // Wait for actual API result
-    let result;
+    // Fire the run request — backend responds immediately and processes in background
     try {
-      result = await apiPromise;
+      await postJson(`/campaigns/${campaign.id}/run`, { retryFailed });
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Campaign run failed.');
+      toast.error(err?.response?.data?.error || 'Failed to start campaign.');
       setRunning(false);
-      setStepStatuses((prev) => prev.map((s) => ({ ...s, status: s.status === 'active' ? 'failed' : s.status })));
       return;
     }
 
-    // Apply real step results from API
-    const stepMap = new Map((result.steps || []).map((s) => [s.name, s]));
-    setStepStatuses(STEP_NAMES.map((name) => {
-      const s = stepMap.get(name);
-      return s
-        ? { status: s.status || 'completed', reason: s.reason || `${name} completed`, processed: total }
-        : { status: 'completed', reason: `${name} completed`, processed: total };
-    }));
-
-    dispatch({ type: 'SET_PIPELINE', payload: result.steps || [] });
-    dispatch({ type: 'SET_SENT_EMAILS', payload: result.sentEmails || [] });
-    dispatch({ type: 'SET_RESULTS', payload: result.summary || {} });
-    if (result.campaign) {
-      dispatch({ type: 'SET_CURRENT_CAMPAIGN', payload: { id: result.campaign.id, name: result.campaign.campaignName } });
-    }
-
-    const s = result.summary || {};
-    setSummary({ processed: s.processed || 0, sent: s.sent || 0, failed: s.failed || 0 });
-    setRunning(false);
-    setDone(true);
-
-    // Reload campaigns
-    getJson('/campaigns').then((d) => dispatch({ type: 'SET_CAMPAIGNS', payload: d })).catch(() => {});
-
-    if ((s.failed || 0) > 0) {
-      toast.warning(`${s.failed} email(s) failed. Check Results for details.`);
-    } else if ((s.sent || 0) > 0) {
-      toast.success(`${s.sent} email(s) sent successfully!`);
-    } else {
-      toast.info('Pipeline finished. Check Results page.');
-    }
+    // Start polling for live progress
+    startPolling(campaign.id, total);
   }
 
-  function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  function startPolling(campaignId, total) {
+    if (pollRef.current) clearInterval(pollRef.current);
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const data = await getJson(`/campaigns/${campaignId}`);
+        const c = data.campaign;
+        if (!c) return;
+
+        const sent = c.sentCount || 0;
+        const failed = c.failedCount || 0;
+        const processed = sent + failed;
+        const total_ = c.totalEmails || total;
+
+        // Derive which "step" we appear to be on based on progress ratio
+        const ratio = total_ > 0 ? processed / total_ : 0;
+        const activeStepIdx = Math.min(Math.floor(ratio * (STEP_NAMES.length - 1)), STEP_NAMES.length - 1);
+
+        setStepStatuses(STEP_NAMES.map((_, idx) => {
+          if (idx < activeStepIdx) return { status: 'completed', reason: 'Completed', processed: total_ };
+          if (idx === activeStepIdx) return { status: 'active', reason: 'Processing…', processed };
+          return { status: 'pending', reason: 'Waiting for input', processed: 0 };
+        }));
+
+        setSummary({ processed, sent, failed });
+        setActiveCampaign(c);
+
+        // Done when campaign status is no longer Processing
+        const isDone = c.status === 'Completed' || c.status === 'Partially Completed'
+          || c.status === 'Failed' || c.status === 'No Recipients'
+          || (processed >= total_ && total_ > 0);
+
+        if (isDone) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+
+          // Mark all steps completed
+          setStepStatuses(STEP_NAMES.map(() => ({ status: 'completed', reason: 'Completed', processed: total_ })));
+          setSummary({ processed: total_, sent, failed });
+          setRunning(false);
+          setDone(true);
+
+          dispatch({ type: 'SET_RESULTS', payload: { processed: total_, sent, failed } });
+          getJson('/campaigns').then((d) => dispatch({ type: 'SET_CAMPAIGNS', payload: d })).catch(() => {});
+
+          if (failed > 0 && sent === 0) {
+            toast.error(`All ${failed} emails failed. Check Campaigns for details.`);
+          } else if (failed > 0) {
+            toast.warning(`${sent} sent, ${failed} failed.`);
+          } else {
+            toast.success(`${sent} email${sent !== 1 ? 's' : ''} sent successfully!`);
+          }
+        }
+      } catch {
+        // Ignore transient poll errors
+      }
+    }, POLL_INTERVAL_MS);
   }
 
-  const total = activeCampaign?.pendingCount || activeCampaign?.totalEmails || 0;
+  const total = activeCampaign?.totalEmails || activeCampaign?.pendingCount || 0;
+  const completedSteps = stepStatuses.filter((s) => s.status === 'completed').length;
 
   return (
     <div className="space-y-6">
@@ -200,9 +209,9 @@ export default function PipelineExecution() {
           <h2 className="text-3xl font-bold text-slate-950">Pipeline execution</h2>
           <p className="mt-2 text-slate-500">
             {running
-              ? `Running: ${activeCampaign?.campaignName} — processing ${total} email${total !== 1 ? 's' : ''}…`
+              ? `Processing ${summary.processed}/${total} emails… (${summary.sent} sent, ${summary.failed} failed)`
               : done
-              ? `Completed: ${summary.sent} sent, ${summary.failed} failed out of ${summary.processed} emails.`
+              ? `Completed: ${summary.sent} sent, ${summary.failed} failed out of ${total} emails.`
               : activeCampaign
               ? `Ready: ${activeCampaign.campaignName} (${total} pending)`
               : 'Upload a campaign sheet to start.'}
@@ -226,17 +235,13 @@ export default function PipelineExecution() {
       {running && (
         <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-medium text-blue-700">Pipeline running…</span>
-            <span className="text-blue-600">
-              {stepStatuses.filter((s) => s.status === 'completed').length}/{STEP_NAMES.length} steps
-            </span>
+            <span className="font-medium text-blue-700">Pipeline running… emails are being processed in the background</span>
+            <span className="text-blue-600">{summary.processed}/{total} emails</span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-blue-100">
             <div
               className="h-full rounded-full bg-blue-500 transition-all duration-700"
-              style={{
-                width: `${(stepStatuses.filter((s) => s.status === 'completed').length / STEP_NAMES.length) * 100}%`,
-              }}
+              style={{ width: total > 0 ? `${Math.round((summary.processed / total) * 100)}%` : '5%' }}
             />
           </div>
         </div>
@@ -258,7 +263,7 @@ export default function PipelineExecution() {
       </div>
 
       {/* Summary cards */}
-      {done && (
+      {(running || done) && (
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <h3 className="font-semibold text-slate-700">Rows Processed</h3>
