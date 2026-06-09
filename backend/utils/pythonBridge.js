@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..', '..');
 
-const PYTHON_TIMEOUT_MS = 60_000;
+const PYTHON_TIMEOUT_MS = 120_000;
 
 export function runPython(moduleName, payload) {
   return new Promise((resolve, reject) => {

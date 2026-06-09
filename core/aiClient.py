@@ -11,7 +11,7 @@ import urllib.request
 from typing import Any
 
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-DEFAULT_TIMEOUT = 60  # seconds
+DEFAULT_TIMEOUT = 90  # seconds
 
 # Per-module model + API key configuration.
 # Each step can use a different model and a different API key env var.
