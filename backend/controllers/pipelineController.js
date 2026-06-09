@@ -619,15 +619,30 @@ export async function runCampaign(request, response, next) {
 // Processes up to BATCH_CONCURRENCY emails at a time so the server can
 // handle multiple campaigns simultaneously without running out of memory.
 // ---------------------------------------------------------------------------
-const BATCH_CONCURRENCY = 3;
+const BATCH_CONCURRENCY = 2;       // 2 emails at a time — avoids NVIDIA rate limits
+const BATCH_DELAY_MS = 1000;       // 1s pause between batches
 
-// Run a Python module but never throw — return fallback on timeout or error.
+// Run a Python module but never throw — 1 retry then fallback on timeout or error.
 async function safeRunPython(moduleName, payload, fallback = {}) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await runPython(moduleName, payload);
+    } catch (err) {
+      debugLog(`safeRunPython: ${moduleName} attempt ${attempt} failed`, { error: err.message });
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 2000)); // wait 2s before retry
+    }
+  }
+  debugLog(`safeRunPython: ${moduleName} all attempts failed, using fallback`);
+  return fallback;
+}
+
+// Call an enhance function but never throw — return fallback if it errors.
+async function safeEnhance(fn, input, fallback) {
   try {
-    return await runPython(moduleName, payload);
+    return await fn(input, fallback);
   } catch (err) {
-    debugLog(`safeRunPython: ${moduleName} failed, using fallback`, { error: err.message });
-    return fallback;
+    debugLog(`safeEnhance failed, using fallback`, { error: err.message });
+    return fallback || {};
   }
 }
 
@@ -653,9 +668,10 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         target_country: targetCountry,
         candidate_positioning: candidate.whyRelevant,
       };
-      // Use safeRunPython so a timeout on any single step never kills the whole email.
+      // Every Python + AI call is wrapped in safe helpers.
+      // If any step times out or errors, it uses fallback data and the email still sends.
       const roleCountryFallback = await safeRunPython('role-country', roleCountryInput);
-      const roleCountryOutput = await enhanceRoleCountry(roleCountryInput, roleCountryFallback);
+      const roleCountryOutput = await safeEnhance(enhanceRoleCountry, roleCountryInput, roleCountryFallback);
 
       const linkedinInput = {
         full_name: row.name || record.recipient_name,
@@ -666,7 +682,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         profile_summary: candidate.resumeSummary || '',
       };
       const linkedinFallback = await safeRunPython('linkedin-research', linkedinInput);
-      const linkedinOutput = await enhanceLinkedinResearch(linkedinInput, linkedinFallback);
+      const linkedinOutput = await safeEnhance(enhanceLinkedinResearch, linkedinInput, linkedinFallback);
 
       const companyInput = {
         campaign_id: campaignId,
@@ -679,7 +695,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         approved_sources: [],
       };
       const companyFallback = await safeRunPython('company-research', companyInput);
-      const companyOutput = await enhanceCompanyResearch(companyInput, companyFallback);
+      const companyOutput = await safeEnhance(enhanceCompanyResearch, companyInput, companyFallback);
 
       const personalityInput = {
         campaign_id: campaignId,
@@ -688,13 +704,13 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         job_title: targetRole,
         company_name: companyName,
         linkedin_profile_summary: candidate.resumeSummary || '',
-        company_research_summary: companyOutput.company_overview,
-        role_country_intelligence: roleCountryOutput.email_positioning_angle,
+        company_research_summary: companyOutput.company_overview || '',
+        role_country_intelligence: roleCountryOutput.email_positioning_angle || '',
       };
       const personalityFallback = await safeRunPython('personality-analysis', personalityInput);
-      const personalityOutput = await enhanceCommunicationSignal(personalityInput, personalityFallback);
+      const personalityOutput = await safeEnhance(enhanceCommunicationSignal, personalityInput, personalityFallback);
 
-      decisionOutput = await safeRunPython('decision-engine', {
+      const decisionFallback = await safeRunPython('decision-engine', {
         campaign_id: campaignId,
         prospect_id: prospectId,
         cleaning_output: { ...row, full_name: row.name || record.recipient_name, role_title: targetRole, company_name: companyName },
@@ -704,6 +720,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         personality_analysis_output: personalityOutput,
         campaign_settings: { gmail_configured: true, gmail_valid: true, sending_enabled: true },
       });
+      decisionOutput = decisionFallback || {};
 
       const emailInput = {
         campaign_id: campaignId,
@@ -711,7 +728,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         final_personalization_payload: decisionOutput.final_personalization_payload,
       };
       const emailFallback = await safeRunPython('email-personalization', emailInput);
-      emailOutput = await enhanceEmailWriting(emailInput, emailFallback);
+      emailOutput = await safeEnhance(enhanceEmailWriting, emailInput, emailFallback);
 
       if (!emailIsSendable(decisionOutput, emailOutput)) {
         sendOutput = blockedSendResult(
@@ -773,10 +790,14 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
     debugLog('Email processed', { campaignId, recipientEmail, status: sendOutput.send_status });
   }
 
-  // Process in batches of BATCH_CONCURRENCY to avoid overwhelming the server.
+  // Process in batches: 2 emails at a time with a pause between each batch.
+  // This prevents NVIDIA NIM rate-limit errors and keeps memory stable for 200+ emails.
   for (let i = 0; i < pendingEmails.length; i += BATCH_CONCURRENCY) {
     const batch = pendingEmails.slice(i, i + BATCH_CONCURRENCY);
     await Promise.all(batch.map((record, batchIdx) => processSingleEmail(record, i + batchIdx)));
+    if (i + BATCH_CONCURRENCY < pendingEmails.length) {
+      await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+    }
   }
 
   await recalculateCampaignFromEmails({ campaignId, userEmail });
