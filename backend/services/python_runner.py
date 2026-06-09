@@ -39,4 +39,14 @@ def run(module_name: str, payload: dict) -> dict:
 if __name__ == "__main__":
     module = sys.argv[1]
     request_payload = json.loads(sys.stdin.read() or "{}")
-    print(json.dumps(run(module, request_payload)))
+
+    # Redirect stdout to stderr while running the module so any stray print()
+    # calls inside pipeline steps don't corrupt the JSON output that Node.js reads.
+    _real_stdout = sys.stdout
+    sys.stdout = sys.stderr
+    try:
+        result = run(module, request_payload)
+    finally:
+        sys.stdout = _real_stdout
+
+    print(json.dumps(result))
