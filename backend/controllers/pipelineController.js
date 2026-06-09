@@ -621,6 +621,16 @@ export async function runCampaign(request, response, next) {
 // ---------------------------------------------------------------------------
 const BATCH_CONCURRENCY = 3;
 
+// Run a Python module but never throw — return fallback on timeout or error.
+async function safeRunPython(moduleName, payload, fallback = {}) {
+  try {
+    return await runPython(moduleName, payload);
+  } catch (err) {
+    debugLog(`safeRunPython: ${moduleName} failed, using fallback`, { error: err.message });
+    return fallback;
+  }
+}
+
 async function processEmailsInBackground({ supabase, campaignId, userEmail, pendingEmails, candidate, gmailAddress, refreshToken }) {
   debugLog('Background processing started', { campaignId, total: pendingEmails.length });
 
@@ -643,7 +653,8 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         target_country: targetCountry,
         candidate_positioning: candidate.whyRelevant,
       };
-      const roleCountryFallback = await runPython('role-country', roleCountryInput);
+      // Use safeRunPython so a timeout on any single step never kills the whole email.
+      const roleCountryFallback = await safeRunPython('role-country', roleCountryInput);
       const roleCountryOutput = await enhanceRoleCountry(roleCountryInput, roleCountryFallback);
 
       const linkedinInput = {
@@ -654,7 +665,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         linkedin_url: row.linkedin_url || candidate.linkedInUrl || '',
         profile_summary: candidate.resumeSummary || '',
       };
-      const linkedinFallback = await runPython('linkedin-research', linkedinInput);
+      const linkedinFallback = await safeRunPython('linkedin-research', linkedinInput);
       const linkedinOutput = await enhanceLinkedinResearch(linkedinInput, linkedinFallback);
 
       const companyInput = {
@@ -667,7 +678,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         linkedin_research_status: linkedinOutput.research_status,
         approved_sources: [],
       };
-      const companyFallback = await runPython('company-research', companyInput);
+      const companyFallback = await safeRunPython('company-research', companyInput);
       const companyOutput = await enhanceCompanyResearch(companyInput, companyFallback);
 
       const personalityInput = {
@@ -680,10 +691,10 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         company_research_summary: companyOutput.company_overview,
         role_country_intelligence: roleCountryOutput.email_positioning_angle,
       };
-      const personalityFallback = await runPython('personality-analysis', personalityInput);
+      const personalityFallback = await safeRunPython('personality-analysis', personalityInput);
       const personalityOutput = await enhanceCommunicationSignal(personalityInput, personalityFallback);
 
-      decisionOutput = await runPython('decision-engine', {
+      decisionOutput = await safeRunPython('decision-engine', {
         campaign_id: campaignId,
         prospect_id: prospectId,
         cleaning_output: { ...row, full_name: row.name || record.recipient_name, role_title: targetRole, company_name: companyName },
@@ -699,7 +710,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         prospect_id: prospectId,
         final_personalization_payload: decisionOutput.final_personalization_payload,
       };
-      const emailFallback = await runPython('email-personalization', emailInput);
+      const emailFallback = await safeRunPython('email-personalization', emailInput);
       emailOutput = await enhanceEmailWriting(emailInput, emailFallback);
 
       if (!emailIsSendable(decisionOutput, emailOutput)) {
