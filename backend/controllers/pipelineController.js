@@ -200,18 +200,15 @@ function debugLog(...args) {
 }
 
 function emailIsSendable(decisionOutput = {}, emailOutput = {}) {
-  // Hard-blocked statuses — never send these
-  const hardBlocked = new Set(['blocked_invalid_email', 'skipped_duplicate', 'decision_failed', 'gmail_not_configured']);
-  if (hardBlocked.has(decisionOutput.decision_status)) return false;
-  if (decisionOutput.next_action === 'skip_sending' || decisionOutput.next_action === 'skip_duplicate') return false;
+  // Decision engine must have cleared all 3 gates
+  if (decisionOutput.decision_status !== 'ready_for_sending') return false;
+  if (decisionOutput.next_action !== 'send_email') return false;
 
   // Email must have content
   const hasContent = Boolean(String(emailOutput.subject_line || '').trim() && String(emailOutput.email_body || '').trim());
   if (!hasContent) return false;
 
-  // Accept any generated email including fallback and manual_review_required
-  const generated = ['email_ready', 'fallback_email_created', 'manual_review_required'].includes(emailOutput.email_generation_status);
-  return generated;
+  return emailOutput.email_generation_status === 'email_ready';
 }
 
 function blockedSendResult(reason) {
