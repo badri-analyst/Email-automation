@@ -95,7 +95,7 @@ class DecisionEngineController:
             selected_path=effective_path,
             manual_review=manual_review,
         )
-        final_payload = self._payload_builder.build(cleaning, role_country, linkedin, company, personality, effective_path)
+        final_payload = self._payload_builder.build(cleaning, role_country, linkedin, company, personality, effective_path, request.candidate_profile)
         reason = eligibility_reason or manual_review_reason or fallback_reason or status_reason or path_reason
 
         output = DecisionOutput(

@@ -16,6 +16,7 @@ class FinalPayloadBuilder:
         company: dict[str, Any],
         personality: dict[str, Any],
         selected_path: str,
+        candidate_profile: dict[str, Any] | None = None,
     ) -> FinalPersonalizationPayload:
         """Return final personalization payload with unsupported data omitted."""
         hooks: list[str] = []
@@ -27,6 +28,7 @@ class FinalPayloadBuilder:
             hooks.extend(self._non_insufficient_list(role_country.get("personalization_guidance", [])))
 
         return FinalPersonalizationPayload(
+            candidate=self._candidate(candidate_profile or {}),
             prospect=self._prospect(cleaning),
             role_country_context=self._allowed_role_country(role_country),
             linkedin_context=self._allowed_linkedin(linkedin) if selected_path in {"full_context", "linkedin_role_country"} else {},
@@ -38,6 +40,23 @@ class FinalPayloadBuilder:
                 role_country.get("things_to_avoid", []) + [personality.get("persuasion_profile", {}).get("what_to_avoid", "")]
             ),
         )
+
+    @staticmethod
+    def _candidate(profile: dict[str, Any]) -> dict[str, Any]:
+        """Return candidate fields needed by the email generation prompt."""
+        return {
+            "full_name": profile.get("fullName") or profile.get("full_name") or "",
+            "email": profile.get("email") or "",
+            "current_role": profile.get("currentRole") or profile.get("current_role") or "",
+            "skills": profile.get("skills") or "",
+            "resume_summary": profile.get("resumeSummary") or profile.get("resume_summary") or "",
+            "why_relevant": profile.get("whyRelevant") or profile.get("why_relevant") or "",
+            "linkedin_url": profile.get("linkedInUrl") or profile.get("linkedin_url") or "",
+            "youtube_url": profile.get("youtubeUrl") or profile.get("youtube_url") or "",
+            "github_url": profile.get("githubUrl") or profile.get("github_url") or "",
+            "portfolio_url": profile.get("portfolioUrl") or profile.get("portfolio_url") or "",
+            "preferred_countries": profile.get("preferredCountries") or profile.get("preferred_countries") or "",
+        }
 
     @staticmethod
     def _prospect(cleaning: dict[str, Any]) -> dict[str, Any]:

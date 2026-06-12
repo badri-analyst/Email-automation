@@ -762,6 +762,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         company_research_output: companyOutput,
         personality_analysis_output: personalityOutput,
         campaign_settings: { gmail_configured: true, gmail_valid: true, sending_enabled: true },
+        candidate_profile: candidate,
       });
       decisionOutput = decisionFallback || {};
 
