@@ -555,13 +555,17 @@ export async function runCampaign(request, response, next) {
     debugLog('OAuth2 configuration presence check', { campaignId, userEmail: user.email, gmailAddressPresent: Boolean(gmailAddress), refreshTokenPresent: Boolean(refreshToken) });
 
     if (!gmailAddress || !refreshToken) {
-      const errorMessage = 'Email sending is not configured. Please connect your Gmail account via OAuth2 before running a campaign.';
       const campaign = await recalculateCampaignFromEmails({
         campaignId,
         userEmail: user.email,
         status: CAMPAIGN_STATUSES.uploaded,
       });
-      response.status(400).json({ error: errorMessage, campaign, summary: { processed: 0, sent: 0, failed: 0, pending: pendingEmails.length } });
+      response.status(401).json({
+        error: 'Gmail session expired or not connected. Please reconnect your Gmail account to continue.',
+        error_code: 'GMAIL_AUTH_REQUIRED',
+        campaign,
+        summary: { processed: 0, sent: 0, failed: 0, pending: pendingEmails.length },
+      });
       return;
     }
 

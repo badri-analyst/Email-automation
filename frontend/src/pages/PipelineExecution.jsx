@@ -4,6 +4,7 @@ import { getJson, postJson } from '../services/api.js';
 import { useOutreach } from '../context/OutreachContext.jsx';
 import Card from '../components/ui/Card.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
+import { useNavigate } from 'react-router-dom';
 
 const POLL_INTERVAL_MS = 3000; // poll Supabase every 3 seconds for live progress
 
@@ -64,6 +65,8 @@ function StepCard({ name, index, status, reason, processed, total }) {
 
 export default function PipelineExecution() {
   const { state, dispatch } = useOutreach();
+  const navigate = useNavigate();
+  const [gmailError, setGmailError] = useState(false);
   const [stepStatuses, setStepStatuses] = useState(
     STEP_NAMES.map(() => ({ status: 'pending', reason: 'Waiting for input', processed: 0 })),
   );
@@ -130,6 +133,12 @@ export default function PipelineExecution() {
     try {
       await postJson(`/campaigns/${campaign.id}/run`, { retryFailed });
     } catch (err) {
+      const errorCode = err?.response?.data?.error_code;
+      if (errorCode === 'GMAIL_AUTH_REQUIRED') {
+        setGmailError(true);
+        setRunning(false);
+        return;
+      }
       toast.error(err?.response?.data?.error || 'Failed to start campaign.');
       setRunning(false);
       return;
@@ -243,6 +252,24 @@ export default function PipelineExecution() {
               style={{ width: total > 0 ? `${Math.round((summary.processed / total) * 100)}%` : '5%' }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Gmail re-login banner */}
+      {gmailError && (
+        <div className="flex items-start gap-4 rounded-xl border border-rose-200 bg-rose-50 px-5 py-4">
+          <div className="flex-1">
+            <p className="font-semibold text-rose-700">Gmail session expired or not connected</p>
+            <p className="mt-1 text-sm text-rose-600">
+              Your Gmail account needs to be reconnected before sending emails. Please re-login and try again.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/candidate-profile')}
+            className="shrink-0 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+          >
+            Reconnect Gmail
+          </button>
         </div>
       )}
 
