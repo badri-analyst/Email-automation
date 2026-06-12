@@ -13,7 +13,6 @@ const STEP_NAMES = [
   'Role-Country Intelligence',
   'LinkedIn Research',
   'Company Research',
-  'Communication Signals',
   'Candidate Assets',
   'Decision Engine',
   'Email Generation',

@@ -24,13 +24,6 @@ const MODULE_CONFIG = {
     defaultBaseUrl: NVIDIA_BASE_URL,
     defaultModel: 'meta/llama-4-maverick-17b-128e-instruct',
   },
-  communication_signal: {
-    apiKeyEnv: 'COMMUNICATION_SIGNAL_API_KEY',
-    baseUrlEnv: 'COMMUNICATION_SIGNAL_API_BASE_URL',
-    modelEnv: 'COMMUNICATION_SIGNAL_AI_MODEL',
-    defaultBaseUrl: NVIDIA_BASE_URL,
-    defaultModel: 'stepfun-ai/step-3.5-flash',
-  },
   email_writing: {
     apiKeyEnv: 'EMAIL_WRITING_API_KEY',
     baseUrlEnv: 'EMAIL_WRITING_API_BASE_URL',

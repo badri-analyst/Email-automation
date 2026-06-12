@@ -28,10 +28,6 @@ MODULE_CONFIG: dict[str, dict[str, str]] = {
         "model": "meta/llama-4-maverick-17b-128e-instruct",
         "api_key_env": "COMPANY_RESEARCH_API_KEY",
     },
-    "personality-analysis": {
-        "model": "stepfun-ai/step-3.5-flash",
-        "api_key_env": "COMMUNICATION_SIGNAL_API_KEY",
-    },
     "email-personalization": {
         "model": "mistralai/mistral-large-3-675b-instruct-2512",
         "api_key_env": "EMAIL_WRITING_API_KEY",

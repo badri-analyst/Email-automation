@@ -14,7 +14,6 @@ class FinalPayloadBuilder:
         role_country: dict[str, Any],
         linkedin: dict[str, Any],
         company: dict[str, Any],
-        personality: dict[str, Any],
         selected_path: str,
         candidate_profile: dict[str, Any] | None = None,
     ) -> FinalPersonalizationPayload:
@@ -33,12 +32,9 @@ class FinalPayloadBuilder:
             role_country_context=self._allowed_role_country(role_country),
             linkedin_context=self._allowed_linkedin(linkedin) if selected_path in {"full_context", "linkedin_role_country"} else {},
             company_context=self._allowed_company(company) if selected_path in {"full_context", "company_fallback", "company_role_country"} else {},
-            personality_context=self._allowed_personality(personality) if selected_path == "full_context" else {},
             selected_hooks=list(dict.fromkeys(hooks))[:5],
             email_angle=company.get("company_email_angle") or role_country.get("email_positioning_angle", ""),
-            things_to_avoid=self._non_insufficient_list(
-                role_country.get("things_to_avoid", []) + [personality.get("persuasion_profile", {}).get("what_to_avoid", "")]
-            ),
+            things_to_avoid=self._non_insufficient_list(role_country.get("things_to_avoid", [])),
         )
 
     @staticmethod
@@ -108,12 +104,6 @@ class FinalPayloadBuilder:
             "country_relevance_context",
         ]
         return {key: data.get(key) for key in keys if data.get(key) not in (None, "Insufficient data.")}
-
-    @staticmethod
-    def _allowed_personality(data: dict[str, Any]) -> dict[str, Any]:
-        """Return approved communication signal context fields."""
-        keys = ["communication_style", "professional_behavioral_signals", "professional_motivators", "persuasion_profile"]
-        return {key: data.get(key) for key in keys if data.get(key)}
 
     @staticmethod
     def _non_insufficient_list(values: list[Any]) -> list[str]:

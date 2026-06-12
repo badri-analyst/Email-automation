@@ -75,7 +75,6 @@ class DecisionInput(StrictDecisionModel):
     role_country_output: dict[str, Any] = Field(default_factory=dict)
     linkedin_research_output: dict[str, Any] = Field(default_factory=dict)
     company_research_output: dict[str, Any] = Field(default_factory=dict)
-    personality_analysis_output: dict[str, Any] = Field(default_factory=dict)
     campaign_settings: CampaignSettings = Field(default_factory=CampaignSettings)
     candidate_profile: dict[str, Any] = Field(default_factory=dict)
 
@@ -88,7 +87,6 @@ class FinalPersonalizationPayload(StrictDecisionModel):
     role_country_context: dict[str, Any] = Field(default_factory=dict)
     linkedin_context: dict[str, Any] = Field(default_factory=dict)
     company_context: dict[str, Any] = Field(default_factory=dict)
-    personality_context: dict[str, Any] = Field(default_factory=dict)
     selected_hooks: list[str] = Field(default_factory=list)
     email_angle: str = ""
     things_to_avoid: list[str] = Field(default_factory=list)

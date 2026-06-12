@@ -15,7 +15,6 @@ router.post('/cleaning', controller.cleaning);
 router.post('/role-country', controller.roleCountry);
 router.post('/linkedin-research', controller.linkedinResearch);
 router.post('/company-research', controller.companyResearch);
-router.post('/personality-analysis', controller.personalityAnalysis);
 router.post('/candidate-assets', controller.candidateAssets);
 router.get('/candidate-profile', controller.candidateProfile);
 router.post('/gmail-auth', controller.gmailAuth);

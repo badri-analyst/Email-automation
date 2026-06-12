@@ -72,21 +72,19 @@ class DecisionEngineController:
             "role_country_output": request.role_country_output,
             "linkedin_research_output": request.linkedin_research_output,
             "company_research_output": request.company_research_output,
-            "personality_analysis_output": request.personality_analysis_output,
         }
         sanitized_sections, removed_fields = self._sanitize_sections(raw_sections)
         cleaning = sanitized_sections["cleaning_output"]
         role_country = sanitized_sections["role_country_output"]
         linkedin = sanitized_sections["linkedin_research_output"]
         company = sanitized_sections["company_research_output"]
-        personality = sanitized_sections["personality_analysis_output"]
 
         eligible, eligibility_status, eligibility_reason = self._eligibility.evaluate(cleaning)
         email_present = bool(str(cleaning.get("email", cleaning.get("Email", ""))).strip())
         send_permission, send_block_reason = self._send_permission.evaluate(email_present, request.campaign_settings)
-        selected_path, selected_source, path_reason = self._path_selector.select(role_country, linkedin, company, personality)
+        selected_path, selected_source, path_reason = self._path_selector.select(role_country, linkedin, company)
         fallback_used, fallback_path, fallback_reason = self._fallback.evaluate(selected_path, linkedin)
-        manual_review, manual_review_reason = self._manual_review.evaluate(removed_fields, personality, company, role_country)
+        manual_review, manual_review_reason = self._manual_review.evaluate(removed_fields, company, role_country)
         effective_path = fallback_path if fallback_used else selected_path
         decision_status, next_action, status_reason = self._status.assign(
             eligible=eligible,
@@ -95,7 +93,7 @@ class DecisionEngineController:
             selected_path=effective_path,
             manual_review=manual_review,
         )
-        final_payload = self._payload_builder.build(cleaning, role_country, linkedin, company, personality, effective_path, request.candidate_profile)
+        final_payload = self._payload_builder.build(cleaning, role_country, linkedin, company, effective_path, request.candidate_profile)
         reason = eligibility_reason or manual_review_reason or fallback_reason or status_reason or path_reason
 
         output = DecisionOutput(

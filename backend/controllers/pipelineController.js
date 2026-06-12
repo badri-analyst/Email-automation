@@ -28,7 +28,6 @@ export async function health(_request, response) {
     roleCountryApiConfigured: Boolean(process.env.ROLE_COUNTRY_API_KEY),
     linkedinResearchApiConfigured: Boolean(process.env.LINKEDIN_RESEARCH_API_KEY),
     companyResearchApiConfigured: Boolean(process.env.COMPANY_RESEARCH_API_KEY),
-    communicationSignalApiConfigured: Boolean(process.env.COMMUNICATION_SIGNAL_API_KEY),
     emailWritingApiConfigured: Boolean(process.env.EMAIL_WRITING_API_KEY || process.env.OPENAI_API_KEY),
     sharedAiConfigured: Boolean(process.env.AI_API_KEY || process.env.AIMLAPI_API_KEY || process.env.OPENAI_API_KEY),
     gmailAuthMode: 'oauth2',
@@ -259,19 +258,6 @@ async function enhanceCompanyResearch(input, fallback) {
     temperature: 0.2,
     topP: 1,
     maxTokens: 512,
-  });
-}
-
-async function enhanceCommunicationSignal(input, fallback) {
-  return generateSafeJson({
-    moduleName: 'communication_signal',
-    task: 'Produce professional communication signal JSON using only observable professional content in the input. Do not diagnose personality or infer private traits. Preserve the existing schema exactly.',
-    input: { request: input, deterministic_output: fallback },
-    schemaHint: 'PersonalityAnalysisOutput',
-    fallback,
-    temperature: 0.4,
-    topP: 0.9,
-    maxTokens: 2048,
   });
 }
 
@@ -585,7 +571,7 @@ export async function runCampaign(request, response, next) {
     // Respond immediately — client will poll /campaigns/:id for live progress.
     const steps = [
       'Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research',
-      'Company Research', 'Communication Signals', 'Candidate Assets',
+      'Company Research', 'Candidate Assets',
       'Decision Engine', 'Email Generation', 'Gmail Send',
     ].map((name) => ({ name, status: 'completed', reason: `${name} completed` }));
     response.json({
@@ -743,19 +729,6 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
       const companyFallback = await safeRunPython('company-research', companyInput);
       const companyOutput = await safeEnhance(enhanceCompanyResearch, companyInput, companyFallback);
 
-      const personalityInput = {
-        campaign_id: campaignId,
-        prospect_id: prospectId,
-        person_name: row.name || record.recipient_name,
-        job_title: targetRole,
-        company_name: companyName,
-        linkedin_profile_summary: candidate.resumeSummary || '',
-        company_research_summary: companyOutput.company_overview || '',
-        role_country_intelligence: roleCountryOutput.email_positioning_angle || '',
-      };
-      const personalityFallback = await safeRunPython('personality-analysis', personalityInput);
-      const personalityOutput = await safeEnhance(enhanceCommunicationSignal, personalityInput, personalityFallback);
-
       const decisionFallback = await safeRunPython('decision-engine', {
         campaign_id: campaignId,
         prospect_id: prospectId,
@@ -763,7 +736,6 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         role_country_output: roleCountryOutput,
         linkedin_research_output: linkedinOutput,
         company_research_output: companyOutput,
-        personality_analysis_output: personalityOutput,
         campaign_settings: { gmail_configured: true, gmail_valid: true, sending_enabled: true },
         candidate_profile: candidate,
       });
@@ -877,13 +849,6 @@ export async function companyResearch(request, response, next) {
   try {
     const fallback = await runPython('company-research', request.body);
     response.json(await enhanceCompanyResearch(request.body, fallback));
-  } catch (error) { next(error); }
-}
-
-export async function personalityAnalysis(request, response, next) {
-  try {
-    const fallback = await runPython('personality-analysis', request.body);
-    response.json(await enhanceCommunicationSignal(request.body, fallback));
   } catch (error) { next(error); }
 }
 
@@ -1137,16 +1102,6 @@ export async function runPipeline(request, response, next) {
         linkedin_research_status: linkedinOutput.research_status,
         approved_sources: [],
       });
-      const personalityOutput = await runPython('personality-analysis', {
-        campaign_id: campaignId,
-        prospect_id: prospectId,
-        person_name: row.name || row.Name,
-        job_title: targetRole,
-        company_name: companyName,
-        linkedin_profile_summary: candidate.resumeSummary || '',
-        company_research_summary: companyOutput.company_overview,
-        role_country_intelligence: roleCountryOutput.email_positioning_angle,
-      });
       const decisionOutput = await runPython('decision-engine', {
         campaign_id: campaignId,
         prospect_id: prospectId,
@@ -1154,7 +1109,6 @@ export async function runPipeline(request, response, next) {
         role_country_output: roleCountryOutput,
         linkedin_research_output: linkedinOutput,
         company_research_output: companyOutput,
-        personality_analysis_output: personalityOutput,
         campaign_settings: {
           gmail_configured: Boolean(gmailAddress && refreshToken),
           gmail_valid: Boolean(gmailAddress && refreshToken),
@@ -1220,7 +1174,7 @@ export async function runPipeline(request, response, next) {
       });
     }
 
-    ['Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research', 'Company Research', 'Communication Signals', 'Candidate Assets', 'Decision Engine', 'Email Generation', 'Gmail Send'].forEach((name) => {
+    ['Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research', 'Company Research', 'Candidate Assets', 'Decision Engine', 'Email Generation', 'Gmail Send'].forEach((name) => {
       steps.push({ name, status: 'completed', reason: `${name} completed` });
     });
 

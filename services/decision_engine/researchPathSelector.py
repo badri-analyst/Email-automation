@@ -16,16 +16,14 @@ class ResearchPathSelector:
         role_country: dict[str, Any],
         linkedin: dict[str, Any],
         company: dict[str, Any],
-        personality: dict[str, Any],
     ) -> tuple[str, str, str]:
         """Return selected path, source, and reason."""
         role_ready = role_country.get("role_country_status") in self._rules["role_country_ready_statuses"]
         linkedin_ready = linkedin.get("research_status") in self._rules["linkedin_ready_statuses"]
         company_ready = company.get("company_research_status") in self._rules["company_ready_statuses"]
-        personality_ready = personality.get("personality_analysis_status") in self._rules["personality_ready_statuses"]
 
-        if linkedin_ready and company_ready and role_ready and personality_ready:
-            return "full_context", "combined_context", "LinkedIn, company, role-country, and communication context are available."
+        if linkedin_ready and company_ready and role_ready:
+            return "full_context", "combined_context", "LinkedIn, company, and role-country context are available."
         if linkedin_ready and role_ready:
             return "linkedin_role_country", "linkedin_research", "Person-level LinkedIn research and role-country context are available."
         if company_ready and role_ready:
