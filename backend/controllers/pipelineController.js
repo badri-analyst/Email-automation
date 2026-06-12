@@ -695,11 +695,9 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
   async function processSingleEmailCore(record, index) {
     const row = record.row_data || {};
     const prospectId = `prospect-${index + 1}`;
-    // Candidate's own target role/country drives the intelligence — not the prospect's row data.
-    // The spreadsheet contains prospect info (who to email); the candidate profile
-    // contains what role they're pursuing and which countries they're targeting.
-    const targetRole = candidate.currentRole || row.role || 'Business Analyst';
-    const targetCountry = candidate.preferredCountries || row.country || '';
+    // Use row data if present (prospect-specific), otherwise fall back to candidate profile.
+    const targetRole = row.role || row.Role || candidate.currentRole || 'Business Analyst';
+    const targetCountry = row.country || row.Country || candidate.preferredCountries || '';
     const companyName = row.company || record.company_name || '';
     const recipientEmail = record.recipient_email || row.email;
 
