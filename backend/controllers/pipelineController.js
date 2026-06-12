@@ -695,8 +695,11 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
   async function processSingleEmailCore(record, index) {
     const row = record.row_data || {};
     const prospectId = `prospect-${index + 1}`;
-    const targetRole = row.role || candidate.currentRole || 'Business Analyst';
-    const targetCountry = row.country || candidate.preferredCountries || '';
+    // Candidate's own target role/country drives the intelligence — not the prospect's row data.
+    // The spreadsheet contains prospect info (who to email); the candidate profile
+    // contains what role they're pursuing and which countries they're targeting.
+    const targetRole = candidate.currentRole || row.role || 'Business Analyst';
+    const targetCountry = candidate.preferredCountries || row.country || '';
     const companyName = row.company || record.company_name || '';
     const recipientEmail = record.recipient_email || row.email;
 
@@ -709,7 +712,9 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         prospect_id: prospectId,
         target_role: targetRole,
         target_country: targetCountry,
-        candidate_positioning: candidate.whyRelevant,
+        candidate_positioning: candidate.whyRelevant || '',
+        candidate_skills: candidate.skills || '',
+        candidate_summary: candidate.resumeSummary || '',
       };
       // Every Python + AI call is wrapped in safe helpers.
       // If any step times out or errors, it uses fallback data and the email still sends.
