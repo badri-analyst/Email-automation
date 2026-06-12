@@ -24,9 +24,6 @@ def run(module_name: str, payload: dict) -> dict:
     if module_name == "company-research":
         from orchestration.companyResearchPipeline import CompanyResearchPipeline
         return CompanyResearchPipeline().research_company(payload).model_dump()
-    if module_name == "personality-analysis":
-        from orchestration.personalityAnalysisPipeline import PersonalityAnalysisPipeline
-        return PersonalityAnalysisPipeline().analyze(payload).model_dump()
     if module_name == "decision-engine":
         from orchestration.decisionEnginePipeline import DecisionEnginePipeline
         return DecisionEnginePipeline().decide(payload).model_dump()

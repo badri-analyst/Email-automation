@@ -1,6 +1,5 @@
 import { runPython } from '../utils/pythonBridge.js';
 import { getSupabase, getSupabaseSettings, fetchWithTimeout } from '../config/supabase.js';
-import { generateSafeJson } from '../services/aiJsonService.js';
 import {
   exchangeCodeForTokens,
   saveGmailAccountCredential,
@@ -219,57 +218,6 @@ function blockedSendResult(reason) {
   };
 }
 
-async function enhanceRoleCountry(input, fallback) {
-  return generateSafeJson({
-    moduleName: 'role_country',
-    task: 'Produce role-country intelligence JSON for recruiter outreach using only the provided cleaned role, country, industry, seniority, and candidate positioning. Preserve the existing schema exactly.',
-    input: { request: input, deterministic_output: fallback },
-    schemaHint: 'RoleCountryOutput',
-    fallback,
-    temperature: 0.2,
-    topP: 0.7,
-    maxTokens: 1024,
-  });
-}
-
-async function enhanceLinkedinResearch(input, fallback) {
-  return generateSafeJson({
-    moduleName: 'linkedin_research',
-    task: 'Produce LinkedIn research JSON using only provided professional profile text, summaries, posts, and approved context. A LinkedIn URL alone is not evidence. Preserve the existing schema exactly.',
-    input: { request: input, deterministic_output: fallback },
-    schemaHint: 'LinkedInResearchOutput',
-    fallback,
-    temperature: 0.15,
-    topP: 1,
-    maxTokens: 2048,
-  });
-}
-
-async function enhanceCompanyResearch(input, fallback) {
-  return generateSafeJson({
-    moduleName: 'company_research',
-    task: 'Produce company research JSON using only provided company name, website URL, approved source snippets, and deterministic output. Do not invent company facts, hiring, funding, or news. Preserve the existing schema exactly.',
-    input: { request: input, deterministic_output: fallback },
-    schemaHint: 'CompanyResearchOutput',
-    fallback,
-    temperature: 0.2,
-    topP: 1,
-    maxTokens: 512,
-  });
-}
-
-async function enhanceEmailWriting(input, fallback) {
-  return generateSafeJson({
-    moduleName: 'email_writing',
-    task: 'Produce recruiter outreach email JSON using only final_personalization_payload. Keep subject under 8 words and body under 130 words. Do not invent facts or metrics. Preserve the existing schema exactly.',
-    input: { request: input, deterministic_output: fallback },
-    schemaHint: 'EmailPersonalizationOutput',
-    fallback,
-    temperature: 0.15,
-    topP: 1,
-    maxTokens: 2048,
-  });
-}
 
 export async function supabaseHealth(_request, response, next) {
   try {
@@ -655,15 +603,6 @@ async function safeRunPython(moduleName, payload, fallback = {}) {
   return fallback;
 }
 
-// Call an enhance function but never throw — return fallback if it errors.
-async function safeEnhance(fn, input, fallback) {
-  try {
-    return await fn(input, fallback);
-  } catch (err) {
-    debugLog(`safeEnhance failed, using fallback`, { error: err.message });
-    return fallback || {};
-  }
-}
 
 async function processEmailsInBackground({ supabase, campaignId, userEmail, pendingEmails, candidate, gmailAddress, refreshToken }) {
   debugLog('Background processing started', { campaignId, total: pendingEmails.length });
@@ -701,10 +640,9 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         candidate_skills: candidate.skills || '',
         candidate_summary: candidate.resumeSummary || '',
       };
-      // Every Python + AI call is wrapped in safe helpers.
-      // If any step times out or errors, it uses fallback data and the email still sends.
-      const roleCountryFallback = await safeRunPython('role-country', roleCountryInput);
-      const roleCountryOutput = await safeEnhance(enhanceRoleCountry, roleCountryInput, roleCountryFallback);
+      // Each module calls its own dedicated API key (ROLE_COUNTRY_API_KEY, LINKEDIN_RESEARCH_API_KEY,
+      // COMPANY_RESEARCH_API_KEY, EMAIL_WRITING_API_KEY). safeRunPython has 1 retry + fallback.
+      const roleCountryOutput = await safeRunPython('role-country', roleCountryInput);
 
       const linkedinInput = {
         full_name: row.name || record.recipient_name,
@@ -714,8 +652,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         linkedin_url: row.linkedin_url || candidate.linkedInUrl || '',
         profile_summary: candidate.resumeSummary || '',
       };
-      const linkedinFallback = await safeRunPython('linkedin-research', linkedinInput);
-      const linkedinOutput = await safeEnhance(enhanceLinkedinResearch, linkedinInput, linkedinFallback);
+      const linkedinOutput = await safeRunPython('linkedin-research', linkedinInput);
 
       const companyInput = {
         campaign_id: campaignId,
@@ -727,8 +664,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         linkedin_research_status: linkedinOutput.research_status,
         approved_sources: [],
       };
-      const companyFallback = await safeRunPython('company-research', companyInput);
-      const companyOutput = await safeEnhance(enhanceCompanyResearch, companyInput, companyFallback);
+      const companyOutput = await safeRunPython('company-research', companyInput);
 
       const decisionFallback = await safeRunPython('decision-engine', {
         campaign_id: campaignId,
@@ -747,8 +683,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         prospect_id: prospectId,
         final_personalization_payload: decisionOutput.final_personalization_payload,
       };
-      const emailFallback = await safeRunPython('email-personalization', emailInput);
-      emailOutput = await safeEnhance(enhanceEmailWriting, emailInput, emailFallback);
+      emailOutput = await safeRunPython('email-personalization', emailInput);
 
       if (!emailIsSendable(decisionOutput, emailOutput)) {
         sendOutput = blockedSendResult(
