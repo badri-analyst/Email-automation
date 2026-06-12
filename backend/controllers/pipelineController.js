@@ -619,8 +619,40 @@ export async function runCampaign(request, response, next) {
 // Processes up to BATCH_CONCURRENCY emails at a time so the server can
 // handle multiple campaigns simultaneously without running out of memory.
 // ---------------------------------------------------------------------------
-const BATCH_CONCURRENCY = 2;       // 2 emails at a time — avoids NVIDIA rate limits
+const BATCH_CONCURRENCY = 2;       // 2 emails at a time per campaign
 const BATCH_DELAY_MS = 1000;       // 1s pause between batches
+
+// ---------------------------------------------------------------------------
+// Global concurrency semaphore — shared across ALL users and campaigns.
+// Caps total simultaneous email-processing slots on this server instance.
+// At 6 slots: ~6 Python subprocesses × ~75MB = ~450MB RAM (safe on Render Starter).
+// NVIDIA NIM rate limit: 6 concurrent AI calls stays well under free-tier limits.
+// ---------------------------------------------------------------------------
+const MAX_GLOBAL_SLOTS = 6;
+let _activeSlots = 0;
+const _slotQueue = [];
+
+function acquireSlot() {
+  return new Promise((resolve) => {
+    function tryAcquire() {
+      if (_activeSlots < MAX_GLOBAL_SLOTS) {
+        _activeSlots++;
+        resolve();
+      } else {
+        _slotQueue.push(tryAcquire);
+      }
+    }
+    tryAcquire();
+  });
+}
+
+function releaseSlot() {
+  _activeSlots = Math.max(0, _activeSlots - 1);
+  if (_slotQueue.length > 0) {
+    const next = _slotQueue.shift();
+    next();
+  }
+}
 
 // Run a Python module but never throw — 1 retry then fallback on timeout or error.
 async function safeRunPython(moduleName, payload, fallback = {}) {
@@ -650,6 +682,17 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
   debugLog('Background processing started', { campaignId, total: pendingEmails.length });
 
   async function processSingleEmail(record, index) {
+    // Acquire a global slot — waits if server is already at MAX_GLOBAL_SLOTS.
+    // This ensures total memory and API usage stays bounded across all users.
+    await acquireSlot();
+    try {
+      await processSingleEmailCore(record, index);
+    } finally {
+      releaseSlot();
+    }
+  }
+
+  async function processSingleEmailCore(record, index) {
     const row = record.row_data || {};
     const prospectId = `prospect-${index + 1}`;
     const targetRole = row.role || candidate.currentRole || 'Business Analyst';
