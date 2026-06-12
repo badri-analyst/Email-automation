@@ -139,9 +139,9 @@ class EmailPersonalizationController:
     def _is_weak_payload(payload: dict) -> bool:
         """Return whether fallback email should be used."""
         return not (
-            payload.get("linkedin_context")
-            or payload.get("company_context")
-            or payload.get("selected_hooks")
+            payload.get("opening_hook")
+            or payload.get("key_skills")
+            or payload.get("tone_guidance")
         )
 
     def _blocked(

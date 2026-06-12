@@ -265,7 +265,7 @@ export default function PipelineExecution() {
             </p>
           </div>
           <button
-            onClick={() => navigate('/candidate-profile')}
+            onClick={() => navigate('/candidate-profile', { state: { gmailReconnect: true } })}
             className="shrink-0 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
           >
             Reconnect Gmail

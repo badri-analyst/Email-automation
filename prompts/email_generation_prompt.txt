@@ -67,6 +67,12 @@ TONE RULES:
 
 ---
 
+UNSUBSCRIBE:
+- Always add this exact line at the very end of the email body, after the sign off and links:
+  "If you'd prefer not to hear from me, just reply with 'unsubscribe' and I won't contact you again."
+
+---
+
 EMPTY FIELD RULES:
 - opening_hook empty → open with a role-relevant observation using key_skills
 - prospect.name empty → skip greeting, go straight to hook

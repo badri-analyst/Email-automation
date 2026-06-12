@@ -20,9 +20,8 @@ def enhance(input_data: dict) -> dict | None:
     """Call AI to generate a personalised outreach email.
 
     Returns a dict with subject_line, email_body, tone_used, and
-    personalization_hooks_used on success.
-    Returns None if AI is not configured or the call fails,
-    so the caller can fall back to the deterministic template builder.
+    email_generation_status on success.
+    Returns None if AI is not configured or the call fails.
     """
     if not is_ai_configured(_MODULE):
         logger.debug("Email generation AI not configured — using deterministic builder.")
@@ -31,13 +30,11 @@ def enhance(input_data: dict) -> dict | None:
     payload = input_data.get("final_personalization_payload", {})
 
     user_message = json.dumps({
+        "opening_hook": payload.get("opening_hook", ""),
         "candidate": payload.get("candidate", {}),
         "prospect": payload.get("prospect", {}),
-        "role_country_context": payload.get("role_country_context", {}),
-        "company_context": payload.get("company_context", {}),
-        "communication_signal": payload.get("communication_signal", {}),
-        "selected_hooks": payload.get("selected_hooks", []),
-        "linkedin_context": payload.get("linkedin_context", {}),
+        "key_skills": payload.get("key_skills", []),
+        "tone_guidance": payload.get("tone_guidance", ""),
     }, ensure_ascii=False)
 
     try:

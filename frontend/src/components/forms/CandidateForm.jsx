@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getJson, postJson } from '../../services/api.js';
@@ -23,9 +23,10 @@ const initial = {
   resumeSummary: '',
 };
 
-export default function CandidateForm() {
+export default function CandidateForm({ highlightGmail = false }) {
   const { state, dispatch } = useOutreach();
   const { user } = useAuth();
+  const gmailRef = useRef(null);
   const [form, setForm] = useState({ ...initial, ...state.candidate });
   const [resume, setResume] = useState(null);
   const [gmailAccounts, setGmailAccounts] = useState([]);
@@ -64,6 +65,13 @@ export default function CandidateForm() {
       cancelled = true;
     };
   }, [user?.email]);
+
+  // Scroll to Gmail section if user arrived from pipeline Gmail error
+  useEffect(() => {
+    if (highlightGmail && gmailRef.current) {
+      setTimeout(() => gmailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+    }
+  }, [highlightGmail]);
 
   // After returning from the Gmail OAuth redirect, reload the accounts list.
   useEffect(() => {
@@ -138,7 +146,7 @@ export default function CandidateForm() {
       ))}
 
       {/* Gmail OAuth2 multi-account manager */}
-      <div className="block lg:col-span-2">
+      <div ref={gmailRef} className={`block lg:col-span-2 rounded-xl transition-all duration-500 ${highlightGmail ? 'ring-2 ring-amber-400 ring-offset-2 p-3' : ''}`}>
         <GmailAccountsManager
           accounts={gmailAccounts}
           onAccountsChange={setGmailAccounts}
