@@ -13,6 +13,11 @@ function delay(ms) {
 /**
  * Build a RFC 2822 email message and base64url-encode it for the Gmail API.
  */
+function encodeSubject(subject) {
+  // RFC 2047 UTF-8 encoded word — prevents garbled characters (em dashes, accents, etc.)
+  return `=?UTF-8?B?${Buffer.from(String(subject || '')).toString('base64')}?=`;
+}
+
 function buildRawMessage({ from, to, subject, body }) {
   const boundary = `boundary_${Date.now()}`;
   const plain = String(body || '').trim();
@@ -25,7 +30,7 @@ function buildRawMessage({ from, to, subject, body }) {
   const message = [
     `From: ${from}`,
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodeSubject(subject)}`,
     'MIME-Version: 1.0',
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     '',
