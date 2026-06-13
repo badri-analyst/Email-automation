@@ -21,10 +21,25 @@ class FallbackEmailBuilder:
         sign_off_lines = ["Regards,", name or ""] + ([phone] if phone else [])
         sign_off = "\n".join(line for line in sign_off_lines if line)
 
-        return "\n\n".join([
+        linkedin = str(candidate.get("linkedin_url") or "").strip()
+        youtube = str(candidate.get("youtube_url") or "").strip()
+        portfolio = str(candidate.get("portfolio_url") or "").strip()
+        link_lines = []
+        if linkedin:
+            link_lines.append(f"LinkedIn: {linkedin}")
+        if youtube:
+            link_lines.append(f"Why Hire Me: {youtube}")
+        if portfolio:
+            link_lines.append(f"Portfolio: {portfolio}")
+        links_block = "\n".join(link_lines)
+
+        parts = [
             f"I wanted to reach out about {role} opportunities at {company}.",
             intro,
             "I can share a concise example of how I approach requirements clarity, stakeholder alignment, and business-tech communication.",
             cta_sentence,
             sign_off,
-        ])
+        ]
+        if links_block:
+            parts.append(links_block)
+        return "\n\n".join(parts)
