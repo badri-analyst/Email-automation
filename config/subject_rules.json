@@ -1,12 +1,15 @@
 {
-  "max_words": 8,
+  "max_words": 10,
+  "executive_titles": ["ceo", "chief", "founder", "co-founder", "president", "vp", "vice president", "director", "head of", "managing director", "md", "partner", "owner", "principal"],
+  "hiring_manager_titles": ["hiring manager", "talent acquisition", "recruiter", "hr manager", "human resources", "people manager", "staffing", "recruitment"],
   "formulas": {
+    "executive_problem": "Solving {role_gap} challenges at {company}",
+    "executive_hook": "A {role_skill} perspective worth two minutes at {company}",
+    "hiring_manager_seek": "Seeking {target_role} opportunity",
+    "seeker": "Seeking {target_role} opportunity",
     "observation_company": "Quick thought about {company}",
-    "reverse_psychology": "Possibly not relevant",
-    "hiring_signal": "Saw your hiring push",
-    "human_curiosity": "Tiny hiring question",
-    "executive_hook": "Workflow clarity at {company}",
-    "soft_fomo": "Small idea for {company}",
-    "fallback": "Business Analyst interest"
+    "hiring_signal": "Saw your {target_role} opening at {company}",
+    "human_curiosity": "Tiny hiring question for {company}",
+    "fallback": "Seeking {target_role} opportunity"
   }
 }

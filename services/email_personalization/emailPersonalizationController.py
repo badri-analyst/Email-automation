@@ -92,7 +92,7 @@ class EmailPersonalizationController:
 
         company = payload.get("prospect", {}).get("company") or "your team"
         subject_key = self._subject_mapper.select_subject_type(payload)
-        subject, subject_type = self._subject_generator.generate(subject_key, company)
+        subject, subject_type = self._subject_generator.generate(subject_key, company, payload)
         tone = self._tone.select_tone(payload)
         fallback_needed = self._is_weak_payload(payload)
 

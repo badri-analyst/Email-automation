@@ -21,14 +21,24 @@ Return ONLY valid JSON - no markdown, no code fences:
 ---
 
 SUBJECT LINE - THE TRIGGER:
-The subject line is the external trigger. It must connect to an internal emotion - curiosity, recognition, or relevance. The prospect must feel "this was written for me."
+Write the subject line based on prospect.role seniority:
+
+IF prospect.role contains CEO / Chief / Founder / Co-Founder / President / VP / Vice President / Director / Head of / Managing Director / Partner / Owner:
+  - Hook into a business problem or personalised insight
+  - Reference their company challenge, a skill gap, or something specific to them
+  - Examples: "Solving workflow clarity challenges at Deloitte", "A data-driven BA perspective worth two minutes"
+  - Never reveal everything - create curiosity, make them want to open
+
+IF prospect.role contains Hiring Manager / Talent Acquisition / Recruiter / HR / People Manager / Staffing:
+  - Direct and role-specific: "Seeking [candidate.current_role] opportunity"
+  - Example: "Seeking Business Analyst opportunity", "Seeking SAP Basis Consultant opportunity"
+
+IF prospect.role is anything else (normal employee, analyst, engineer, etc.):
+  - Same as hiring manager: "Seeking [candidate.current_role] opportunity"
+  - Example: "Seeking Data Analyst opportunity at IBM"
+
+Rules for all subject lines:
 - 7 to 10 words
-- Personalised to their post, their company news, or their role
-- Creates curiosity - don't reveal everything, make them want to open
-- Examples:
-  - "Loved your post on process automation"
-  - "Congrats on the Series B, worth a chat?"
-  - "BA with Agile experience, quick question for you"
 - Never: "Quick question", "Following up", "Opportunity", "I am reaching out"
 
 ---
