@@ -18,6 +18,11 @@ from services.ai import emailGenerationAiService
 from services.email_personalization.toneAdapterService import ToneAdapterService
 from utils.logger import get_logger
 
+
+def _clean_text(text: str) -> str:
+    """Remove em dashes and replace with a comma-space or hyphen."""
+    return text.replace("—", " - ").replace("–", " - ")
+
 logger = get_logger(__name__)
 
 
@@ -61,8 +66,8 @@ class EmailPersonalizationController:
         # --- AI-first path ---
         ai_result = emailGenerationAiService.enhance(request.model_dump())
         if ai_result and ai_result.get("subject_line") and ai_result.get("email_body"):
-            subject = ai_result["subject_line"]
-            body = ai_result["email_body"]
+            subject = _clean_text(ai_result["subject_line"])
+            body = _clean_text(ai_result["email_body"])
             tone = ai_result.get("tone_used", "professional")
             body = self._quality.shorten_body(body)
             safe, safety_reason = self._safety.check(subject, body)
@@ -108,7 +113,8 @@ class EmailPersonalizationController:
             status = "email_ready"
             reason = "Email draft generated from approved personalization payload."
 
-        body = self._quality.shorten_body(body)
+        body = _clean_text(self._quality.shorten_body(body))
+        subject = _clean_text(subject)
         quality_ok, quality_reason = self._quality.validate(subject, body)
         safe, safety_reason = self._safety.check(subject, body)
         manual_review = not quality_ok
