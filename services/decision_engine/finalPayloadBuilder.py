@@ -40,7 +40,7 @@ class FinalPayloadBuilder:
             return bool(value) and str(value).strip() not in ("", "Insufficient data.")
 
         # 1. LinkedIn personal hook — most specific to this individual
-        linkedin_hooks = linkedin.get("personalization_output", [])
+        linkedin_hooks = linkedin.get("personalization_insights", [])
         if isinstance(linkedin_hooks, list):
             for hook in linkedin_hooks:
                 if valid(hook):
