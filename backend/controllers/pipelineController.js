@@ -209,9 +209,7 @@ async function loadResumeAttachment(supabase, storagePath) {
 }
 
 function debugLog(...args) {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(...args);
-  }
+  console.log(...args);
 }
 
 function emailIsSendable(decisionOutput = {}, emailOutput = {}) {
@@ -612,11 +610,11 @@ async function safeRunPython(moduleName, payload, fallback = {}) {
     try {
       return await runPython(moduleName, payload);
     } catch (err) {
-      debugLog(`safeRunPython: ${moduleName} attempt ${attempt} failed`, { error: err.message });
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 2000)); // wait 2s before retry
+      console.error(`[safeRunPython] ${moduleName} attempt ${attempt} FAILED:`, err.message);
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
     }
   }
-  debugLog(`safeRunPython: ${moduleName} all attempts failed, using fallback`);
+  console.error(`[safeRunPython] ${moduleName} all attempts failed — using fallback {}`);
   return fallback;
 }
 
