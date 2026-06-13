@@ -28,12 +28,12 @@ class FallbackEmailBuilder:
         link_lines = []
         if linkedin:
             link_lines.append(f"LinkedIn: {linkedin}")
-        if youtube:
-            link_lines.append(f"Why Hire Me: {youtube}")
-        if portfolio:
-            link_lines.append(f"Portfolio: {portfolio}")
         if resume_url:
             link_lines.append(f"Resume: {resume_url}")
+        if youtube:
+            link_lines.append(f"Why Should You Hire Me: {youtube}")
+        if portfolio:
+            link_lines.append(f"Portfolio: {portfolio}")
         links_block = "\n".join(link_lines)
 
         parts = [

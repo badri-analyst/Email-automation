@@ -51,9 +51,9 @@ Example: "I have put together a short video on why I would be a strong fit - wor
 
 Include only non-empty links on separate lines (before sign off):
 LinkedIn: [candidate.linkedin_url]
-Why Hire Me: [candidate.youtube_url]
-Portfolio: [candidate.portfolio_url]
 Resume: [candidate.resume_url]
+Why Should You Hire Me: [candidate.youtube_url]
+Portfolio: [candidate.portfolio_url]
 
 Sign off (always last):
 Regards,
