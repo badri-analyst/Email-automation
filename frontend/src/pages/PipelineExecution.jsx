@@ -6,7 +6,7 @@ import Card from '../components/ui/Card.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
 import { useNavigate } from 'react-router-dom';
 
-const POLL_INTERVAL_MS = 3000; // poll Supabase every 3 seconds for live progress
+const POLL_INTERVAL_MS = 8000; // poll every 8s — 200 emails takes ~20 min on free tier
 
 const STEP_NAMES = [
   'Validation',
@@ -238,6 +238,13 @@ export default function PipelineExecution() {
           </div>
         )}
       </div>
+
+      {/* Large campaign warning */}
+      {running && total >= 50 && summary.processed === 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-700">
+          <strong>{total} emails detected.</strong> Estimated time: ~{Math.ceil(total / 2 * 12 / 60)} minutes on free tier. Keep this tab open — processing continues in the background.
+        </div>
+      )}
 
       {/* Overall progress bar */}
       {running && (
