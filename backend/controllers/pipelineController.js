@@ -686,11 +686,12 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
       emailOutput = await safeRunPython('email-personalization', emailInput);
 
       if (!emailIsSendable(decisionOutput, emailOutput)) {
+        // Decision may have passed but email generation failed — show email reason first
+        const decisionBlocked = decisionOutput.decision_status !== 'ready_for_sending';
         sendOutput = blockedSendResult(
-          decisionOutput.email_send_block_reason
-            || decisionOutput.decision_reason
-            || emailOutput.email_generation_reason
-            || 'Email was generated but did not pass direct-send safety gates.',
+          decisionBlocked
+            ? (decisionOutput.email_send_block_reason || decisionOutput.decision_reason || 'Decision engine blocked this email.')
+            : (emailOutput.email_generation_reason || emailOutput.email_generation_status || 'Email generation failed — subject or body was empty.'),
         );
       } else {
         sendOutput = await sendEmailWithRetry({
