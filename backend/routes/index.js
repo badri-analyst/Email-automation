@@ -16,6 +16,7 @@ router.post('/role-country', controller.roleCountry);
 router.post('/linkedin-research', controller.linkedinResearch);
 router.post('/company-research', controller.companyResearch);
 router.post('/candidate-assets', controller.candidateAssets);
+router.post('/resume/upload', upload.single('file'), controller.uploadResume);
 router.get('/candidate-profile', controller.candidateProfile);
 router.post('/gmail-auth', controller.gmailAuth);
 router.get('/gmail-oauth-url', controller.gmailOAuthUrl);

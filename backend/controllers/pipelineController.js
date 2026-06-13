@@ -183,13 +183,29 @@ async function loadCandidateProfile(userEmail) {
   if (!supabase) return {};
   const { data, error } = await supabase
     .from('candidate_assets_results')
-    .select('structured_output')
+    .select('structured_output, resume_storage_path, resume_filename, resume_mime_type')
     .eq('candidate_id', userEmail)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw supabaseWriteError('Supabase candidate profile load failed', error);
-  return data?.structured_output?.profile_form || {};
+  const profile = data?.structured_output?.profile_form || {};
+  profile._resumeStoragePath = data?.resume_storage_path || '';
+  profile._resumeFilename = data?.resume_filename || '';
+  profile._resumeMimeType = data?.resume_mime_type || '';
+  return profile;
+}
+
+async function loadResumeAttachment(supabase, storagePath) {
+  if (!storagePath) return null;
+  try {
+    const { data, error } = await supabase.storage.from('resumes').download(storagePath);
+    if (error || !data) return null;
+    const buffer = Buffer.from(await data.arrayBuffer());
+    return buffer;
+  } catch {
+    return null;
+  }
 }
 
 function debugLog(...args) {
@@ -608,6 +624,15 @@ async function safeRunPython(moduleName, payload, fallback = {}) {
 async function processEmailsInBackground({ supabase, campaignId, userEmail, pendingEmails, candidate, gmailAddress, refreshToken }) {
   debugLog('Background processing started', { campaignId, total: pendingEmails.length });
 
+  // Load resume once for all emails in this campaign
+  const resumeBuffer = await loadResumeAttachment(supabase, candidate._resumeStoragePath);
+  const resumeAttachment = resumeBuffer ? {
+    buffer: resumeBuffer,
+    filename: candidate._resumeFilename || 'resume.pdf',
+    mimeType: candidate._resumeMimeType || 'application/pdf',
+  } : null;
+  debugLog('Resume attachment', { hasResume: Boolean(resumeAttachment), filename: resumeAttachment?.filename });
+
   async function processSingleEmail(record, index) {
     // Acquire a global slot — waits if server is already at MAX_GLOBAL_SLOTS.
     // This ensures total memory and API usage stays bounded across all users.
@@ -701,6 +726,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
           to: recipientEmail,
           subject: emailOutput.subject_line,
           body: emailOutput.email_body,
+          attachment: resumeAttachment,
         });
       }
     } catch (error) {
@@ -858,6 +884,55 @@ export async function candidateAssets(request, response, next) {
     }
 
     response.json({ ...output, candidate_profile_saved: Boolean(supabase), database_status: supabase ? 'saved' : 'not_configured' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function uploadResume(request, response, next) {
+  try {
+    const user = await getAuthenticatedUser(request);
+    const file = request.file;
+    if (!file) {
+      response.status(400).json({ error: 'No file uploaded.' });
+      return;
+    }
+    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowed.includes(file.mimetype)) {
+      response.status(400).json({ error: 'Only PDF and DOCX files are supported.' });
+      return;
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      response.status(503).json({ error: 'Supabase is not configured.' });
+      return;
+    }
+
+    const ext = file.originalname.split('.').pop().toLowerCase();
+    const storagePath = `${user.email}/resume.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('resumes')
+      .upload(storagePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true,
+      });
+
+    if (uploadError) throw new Error(`Resume upload failed: ${uploadError.message}`);
+
+    // Save storage path back to candidate_assets_results
+    await supabase
+      .from('candidate_assets_results')
+      .update({
+        resume_storage_path: storagePath,
+        resume_filename: file.originalname,
+        resume_mime_type: file.mimetype,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('candidate_id', user.email);
+
+    response.json({ resume_storage_path: storagePath, resume_filename: file.originalname });
   } catch (error) {
     next(error);
   }

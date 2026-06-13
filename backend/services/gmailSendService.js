@@ -18,8 +18,7 @@ function encodeSubject(subject) {
   return `=?UTF-8?B?${Buffer.from(String(subject || '')).toString('base64')}?=`;
 }
 
-function buildRawMessage({ from, to, subject, body }) {
-  const boundary = `boundary_${Date.now()}`;
+function buildRawMessage({ from, to, subject, body, attachment = null }) {
   const plain = String(body || '').trim();
   const html = plain
     .replace(/&/g, '&amp;')
@@ -27,27 +26,67 @@ function buildRawMessage({ from, to, subject, body }) {
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>');
 
-  const message = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${encodeSubject(subject)}`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    '',
-    plain,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/html; charset="UTF-8"',
-    '',
-    `<html><body>${html}</body></html>`,
-    '',
-    `--${boundary}--`,
-  ].join('\r\n');
+  const outerBoundary = `outer_${Date.now()}`;
+  const innerBoundary = `inner_${Date.now() + 1}`;
 
-  // base64url encode (no padding, + → -, / → _)
+  let message;
+
+  if (attachment) {
+    // multipart/mixed wraps body alternatives + attachment
+    message = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${encodeSubject(subject)}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${outerBoundary}"`,
+      '',
+      `--${outerBoundary}`,
+      `Content-Type: multipart/alternative; boundary="${innerBoundary}"`,
+      '',
+      `--${innerBoundary}`,
+      'Content-Type: text/plain; charset="UTF-8"',
+      '',
+      plain,
+      '',
+      `--${innerBoundary}`,
+      'Content-Type: text/html; charset="UTF-8"',
+      '',
+      `<html><body>${html}</body></html>`,
+      '',
+      `--${innerBoundary}--`,
+      '',
+      `--${outerBoundary}`,
+      `Content-Type: ${attachment.mimeType}; name="${attachment.filename}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${attachment.filename}"`,
+      '',
+      attachment.buffer.toString('base64').match(/.{1,76}/g).join('\r\n'),
+      '',
+      `--${outerBoundary}--`,
+    ].join('\r\n');
+  } else {
+    // simple multipart/alternative — no attachment
+    message = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${encodeSubject(subject)}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/alternative; boundary="${outerBoundary}"`,
+      '',
+      `--${outerBoundary}`,
+      'Content-Type: text/plain; charset="UTF-8"',
+      '',
+      plain,
+      '',
+      `--${outerBoundary}`,
+      'Content-Type: text/html; charset="UTF-8"',
+      '',
+      `<html><body>${html}</body></html>`,
+      '',
+      `--${outerBoundary}--`,
+    ].join('\r\n');
+  }
+
   return Buffer.from(message)
     .toString('base64')
     .replace(/\+/g, '-')
@@ -96,8 +135,8 @@ async function getAccessToken(refreshToken) {
 /**
  * Send one email via the Gmail REST API.
  */
-async function sendViaGmailApi({ accessToken, gmailAddress, to, subject, body }) {
-  const raw = buildRawMessage({ from: gmailAddress, to, subject, body });
+async function sendViaGmailApi({ accessToken, gmailAddress, to, subject, body, attachment }) {
+  const raw = buildRawMessage({ from: gmailAddress, to, subject, body, attachment });
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
@@ -135,7 +174,7 @@ async function sendViaGmailApi({ accessToken, gmailAddress, to, subject, body })
  * @param {string} opts.body
  * @param {number} [opts.retries]
  */
-export async function sendEmailWithRetry({ gmailAddress, refreshToken, to, subject, body, retries = DEFAULT_RETRIES }) {
+export async function sendEmailWithRetry({ gmailAddress, refreshToken, to, subject, body, attachment = null, retries = DEFAULT_RETRIES }) {
   if (!gmailAddress || !refreshToken) {
     throw new Error('Gmail address and OAuth2 refresh token are required to send email.');
   }
@@ -155,6 +194,7 @@ export async function sendEmailWithRetry({ gmailAddress, refreshToken, to, subje
         to: String(to).trim().toLowerCase(),
         subject: String(subject || 'Quick note').trim(),
         body,
+        attachment,
       });
       return {
         send_status: 'sent',

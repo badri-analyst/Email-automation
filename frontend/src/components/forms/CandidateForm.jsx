@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { getJson, postJson } from '../../services/api.js';
+import { getJson, postJson, uploadFile } from '../../services/api.js';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
 import { useOutreach } from '../../context/OutreachContext.jsx';
 import { isEmail, isLinkedInProfile, isYouTube, sanitizeText } from '../../utils/validators.js';
 import Button from '../ui/Button.jsx';
 import FileDropzone from '../upload/FileDropzone.jsx';
 import GmailAccountsManager from '../gmail/GmailAccountsManager.jsx';
+
 
 const initial = {
   fullName: '',
@@ -29,6 +30,7 @@ export default function CandidateForm({ highlightGmail = false }) {
   const gmailRef = useRef(null);
   const [form, setForm] = useState({ ...initial, ...state.candidate });
   const [resume, setResume] = useState(null);
+  const [resumeUploaded, setResumeUploaded] = useState(false);
   const [gmailAccounts, setGmailAccounts] = useState([]);
   const { loading, run } = useAsyncAction();
 
@@ -110,6 +112,12 @@ export default function CandidateForm({ highlightGmail = false }) {
     payload.fullName = payload.fullName || user?.name || '';
     payload.resumeFileName = resume?.name || '';
     await run(async () => {
+      // Upload resume file first if a new one was selected
+      if (resume && !resumeUploaded) {
+        await uploadFile('/resume/upload', resume, {}, null);
+        setResumeUploaded(true);
+        toast.info('Resume uploaded — will be attached to every email.');
+      }
       const candidateAssets = await postJson('/candidate-assets', {
         ...payload,
         campaign_id: state.campaign.id,
@@ -175,9 +183,12 @@ export default function CandidateForm({ highlightGmail = false }) {
       <div className="lg:col-span-2">
         <FileDropzone
           accept={{ 'application/pdf': ['.pdf'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }}
-          onFile={setResume}
-          label={resume ? resume.name : 'Upload resume PDF/DOCX'}
+          onFile={(file) => { setResume(file); setResumeUploaded(false); }}
+          label={resumeUploaded ? `✓ Resume attached: ${resume?.name}` : resume ? resume.name : 'Upload resume PDF/DOCX — will be attached to every email sent'}
         />
+        {resumeUploaded && (
+          <p className="mt-1 text-xs text-emerald-600">Resume will be attached to every outreach email.</p>
+        )}
       </div>
       <div className="lg:col-span-2">
         <Button disabled={loading}>{loading ? 'Saving...' : 'Save candidate profile'}</Button>
