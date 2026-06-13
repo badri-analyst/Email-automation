@@ -867,6 +867,7 @@ export async function candidateAssets(request, response, next) {
           profile_form: {
             fullName: body.fullName || '',
             email: user.email,
+            phone: body.phone || '',
             linkedInUrl: body.linkedInUrl || '',
             youtubeUrl: body.youtubeUrl || '',
             githubUrl: body.githubUrl || '',

@@ -13,6 +13,7 @@ import GmailAccountsManager from '../gmail/GmailAccountsManager.jsx';
 const initial = {
   fullName: '',
   email: '',
+  phone: '',
   linkedInUrl: '',
   youtubeUrl: '',
   whyRelevant: '',
@@ -133,6 +134,7 @@ export default function CandidateForm({ highlightGmail = false }) {
       {[
         ['fullName', 'Full Name', 'text'],
         ['email', 'Email Address', 'email'],
+        ['phone', 'Phone Number', 'tel'],
         ['linkedInUrl', 'LinkedIn URL', 'url'],
         ['youtubeUrl', 'YouTube Video Link', 'url'],
         ['githubUrl', 'GitHub URL', 'url'],
