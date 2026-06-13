@@ -20,11 +20,22 @@ function encodeSubject(subject) {
 
 function buildRawMessage({ from, to, subject, body, attachment = null }) {
   const plain = String(body || '').trim();
+
+  // Convert plain text to clean HTML:
+  // - Split on blank lines → <p> paragraphs (proper spacing in Gmail)
+  // - Within each paragraph, join lines with a space so sentences flow naturally
   const html = plain
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
+    .split(/\n{2,}/)
+    .map((para) => {
+      const escaped = para
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .split('\n')
+        .join('<br>');
+      return `<p style="margin:0 0 12px 0;line-height:1.6;">${escaped}</p>`;
+    })
+    .join('');
 
   const outerBoundary = `outer_${Date.now()}`;
   const innerBoundary = `inner_${Date.now() + 1}`;
@@ -51,7 +62,7 @@ function buildRawMessage({ from, to, subject, body, attachment = null }) {
       `--${innerBoundary}`,
       'Content-Type: text/html; charset="UTF-8"',
       '',
-      `<html><body>${html}</body></html>`,
+      `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#222;max-width:600px;margin:0;padding:16px;">${html}</body></html>`,
       '',
       `--${innerBoundary}--`,
       '',
@@ -81,7 +92,7 @@ function buildRawMessage({ from, to, subject, body, attachment = null }) {
       `--${outerBoundary}`,
       'Content-Type: text/html; charset="UTF-8"',
       '',
-      `<html><body>${html}</body></html>`,
+      `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#222;max-width:600px;margin:0;padding:16px;">${html}</body></html>`,
       '',
       `--${outerBoundary}--`,
     ].join('\r\n');

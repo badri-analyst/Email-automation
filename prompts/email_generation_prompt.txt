@@ -35,7 +35,7 @@ The subject line is the external trigger. It must connect to an internal emotion
 
 EMAIL BODY (under 180 words, empty line between every paragraph):
 
-LINE LENGTH RULE: Every line in the email body must be 7 to 10 words. Break longer sentences into separate lines. Do not write a sentence that runs more than 10 words on a single line.
+SENTENCE LENGTH RULE: Every sentence in the email body must be 7 to 10 words. Write one sentence per line. Do not write a sentence longer than 10 words.
 
 
 Paragraph 1 - TRIGGER + INVESTMENT acknowledgement (1 sentence):
