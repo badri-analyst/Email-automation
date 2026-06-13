@@ -30,11 +30,11 @@ IF prospect.role contains CEO / Chief / Founder / Co-Founder / President / VP / 
   - Never reveal everything - create curiosity, make them want to open
 
 IF prospect.role contains Hiring Manager / Talent Acquisition / Recruiter / HR / People Manager / Staffing:
-  - Direct and role-specific: "Seeking [candidate.current_role] opportunity"
+  - Direct and role-specific: "Seeking [prospect.role] opportunity"
   - Example: "Seeking Business Analyst opportunity", "Seeking SAP Basis Consultant opportunity"
 
 IF prospect.role is anything else (normal employee, analyst, engineer, etc.):
-  - Same as hiring manager: "Seeking [candidate.current_role] opportunity"
+  - Same as hiring manager: "Seeking [prospect.role] opportunity"
   - Example: "Seeking Data Analyst opportunity at IBM"
 
 Rules for all subject lines:
