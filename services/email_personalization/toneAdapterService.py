@@ -4,14 +4,17 @@ from services.email_personalization.rule_loader import load_email_config
 
 
 class ToneAdapterService:
-    """Select allowed tone from communication guidance."""
+    """Select tone from tone_guidance in FinalPersonalizationPayload."""
 
     def __init__(self) -> None:
         self._rules = load_email_config("tone_rules.json")
 
     def select_tone(self, payload: dict) -> str:
-        """Return deterministic allowed tone."""
-        personality = payload.get("personality_context", {})
-        raw_tone = personality.get("communication_style", {}).get("tone", "")
-        tone = self._rules["tone_map"].get(raw_tone, self._rules["default_tone"])
-        return tone if tone in self._rules["allowed_tones"] else self._rules["default_tone"]
+        tone_guidance = str(payload.get("tone_guidance") or "").lower()
+        allowed = self._rules.get("allowed_tones", [])
+        default = self._rules.get("default_tone", "professional")
+
+        for tone in allowed:
+            if tone in tone_guidance:
+                return tone
+        return default

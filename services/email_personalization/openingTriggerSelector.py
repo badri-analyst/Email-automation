@@ -2,10 +2,10 @@
 
 
 class OpeningTriggerSelector:
-    """Select strongest safe opening personalization source."""
+    """Select strongest safe opening from FinalPersonalizationPayload."""
 
     def select(self, payload: dict) -> tuple[str, str, dict[str, bool]]:
-        """Return opening line, trigger, and source flags."""
+        """Return opening line, trigger type, and source flags."""
         sources = {
             "linkedin_context_used": False,
             "company_context_used": False,
@@ -13,30 +13,26 @@ class OpeningTriggerSelector:
             "personality_guidance_used": False,
             "fallback_used": False,
         }
-        linkedin = payload.get("linkedin_context", {})
-        company = payload.get("company_context", {})
-        role_country = payload.get("role_country_context", {})
 
-        linkedin_insights = linkedin.get("personalization_insights") or []
-        if linkedin_insights:
+        opening_hook = str(payload.get("opening_hook") or "").strip()
+        if opening_hook:
             sources["linkedin_context_used"] = True
-            return self._line(linkedin_insights[0]), "LinkedIn professional context", sources
+            return self._line(opening_hook), "opening hook", sources
 
-        hooks = payload.get("selected_hooks") or []
-        if hooks:
-            sources["company_context_used"] = bool(company)
-            sources["role_country_context_used"] = bool(role_country)
-            return self._line(hooks[0]), "approved personalization hook", sources
-
-        if role_country.get("email_positioning_angle"):
+        key_skills = payload.get("key_skills") or []
+        if key_skills:
             sources["role_country_context_used"] = True
-            return self._line(role_country["email_positioning_angle"]), "role-country relevance", sources
+            skill = key_skills[0]
+            prospect = payload.get("prospect", {})
+            role = prospect.get("role") or "this role"
+            return f"I came across your opening for {role} and wanted to reach out — {skill} is something I have been focused on.", "key skill relevance", sources
 
         sources["fallback_used"] = True
-        return "I wanted to reach out with a focused note about Business Analyst opportunities.", "role-based fallback", sources
+        prospect = payload.get("prospect", {})
+        role = prospect.get("role") or "Business Analyst"
+        return f"I wanted to reach out with a focused note about {role} opportunities.", "role-based fallback", sources
 
     @staticmethod
     def _line(text: str) -> str:
-        """Return one concise opening sentence."""
         sentence = str(text).split(".")[0].strip()
         return f"{sentence}." if sentence else "I wanted to reach out with a focused note."
