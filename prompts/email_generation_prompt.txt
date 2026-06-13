@@ -35,6 +35,9 @@ The subject line is the external trigger. It must connect to an internal emotion
 
 EMAIL BODY (under 180 words, empty line between every paragraph):
 
+LINE LENGTH RULE: Every line in the email body must be 7 to 10 words. Break longer sentences into separate lines. Do not write a sentence that runs more than 10 words on a single line.
+
+
 Paragraph 1 - TRIGGER + INVESTMENT acknowledgement (1 sentence):
 Use the opening_hook. Reference something the prospect invested in - their LinkedIn post, their company's funding, their product launch, their hiring decision. This tells them you noticed their work. Make it warm and specific.
 Never open with "I hope this email finds you well" or "My name is".
