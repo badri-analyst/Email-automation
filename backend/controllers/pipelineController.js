@@ -199,7 +199,7 @@ async function loadCandidateProfile(userEmail) {
 async function loadResumeAttachment(supabase, storagePath) {
   if (!storagePath) return null;
   try {
-    const { data, error } = await supabase.storage.from('resumes').download(storagePath);
+    const { data, error } = await supabase.storage.from('Resumes').download(storagePath);
     if (error || !data) return null;
     const buffer = Buffer.from(await data.arrayBuffer());
     return buffer;
@@ -914,7 +914,7 @@ export async function uploadResume(request, response, next) {
     const storagePath = `${user.email}/resume.${ext}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('resumes')
+      .from('Resumes')
       .upload(storagePath, file.buffer, {
         contentType: file.mimetype,
         upsert: true,
