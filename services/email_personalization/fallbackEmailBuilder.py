@@ -41,8 +41,8 @@ class FallbackEmailBuilder:
             intro,
             "I can share a concise example of how I approach requirements clarity, stakeholder alignment, and business-tech communication.",
             cta_sentence,
-            sign_off,
         ]
         if links_block:
             parts.append(links_block)
+        parts.append(sign_off)
         return "\n\n".join(parts)

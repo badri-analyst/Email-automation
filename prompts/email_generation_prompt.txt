@@ -49,16 +49,16 @@ Paragraph 3 - VARIABLE REWARD + ACTION (1 to 2 sentences):
 Create curiosity about what they will find. Don't reveal everything - point them to the profile/video as a discovery. The CTA must be the lowest possible friction - not "schedule a meeting", just "take a look".
 Example: "I have put together a short video on why I would be a strong fit - worth a look if you have two minutes."
 
-Sign off:
-Regards,
-[candidate.full_name]
-[candidate.phone]
-
-Include only non-empty links on separate lines:
+Include only non-empty links on separate lines (before sign off):
 LinkedIn: [candidate.linkedin_url]
 Why Hire Me: [candidate.youtube_url]
 Portfolio: [candidate.portfolio_url]
 Resume: [candidate.resume_url]
+
+Sign off (always last):
+Regards,
+[candidate.full_name]
+[candidate.phone]
 
 ---
 
