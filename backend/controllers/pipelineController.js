@@ -207,7 +207,9 @@ function emailIsSendable(decisionOutput = {}, emailOutput = {}) {
   const hasContent = Boolean(String(emailOutput.subject_line || '').trim() && String(emailOutput.email_body || '').trim());
   if (!hasContent) return false;
 
-  return emailOutput.email_generation_status === 'email_ready';
+  // Accept any status that produced a real subject + body (fallback and AI paths use different status strings)
+  const blocked = ['email_generation_failed', 'blocked_invalid_payload', 'blocked_unsafe_content'];
+  return !blocked.includes(emailOutput.email_generation_status);
 }
 
 function blockedSendResult(reason) {
