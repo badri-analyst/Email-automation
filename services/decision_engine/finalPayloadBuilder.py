@@ -47,12 +47,14 @@ class FinalPayloadBuilder:
                     return str(hook).strip()
 
         # 2. Company hook — funding / launch / hiring signal
-        company_hook = company.get("hook", "")
-        if valid(company_hook):
-            return str(company_hook).strip()
+        company_hooks = company.get("company_personalization_hooks", [])
+        if isinstance(company_hooks, list):
+            for hook in company_hooks:
+                if valid(hook):
+                    return str(hook).strip()
 
         # 3. Role-country focus — least personal but always available
-        focus = role_country.get("country_specific_focus", "")
+        focus = role_country.get("email_positioning_angle", "") or role_country.get("country_specific_email_tone", "")
         if valid(focus):
             return str(focus).strip()
 
@@ -64,14 +66,15 @@ class FinalPayloadBuilder:
     @staticmethod
     def _key_skills(role_country: dict[str, Any]) -> list[str]:
         """Return top 3 exact phrases hiring managers use in this country/role."""
-        phrases = role_country.get("exact_job_market_phrases", [])
+        # priority_skills has the most specific job-market phrases
+        phrases = role_country.get("priority_skills", []) or role_country.get("business_keywords", [])
         if not isinstance(phrases, list):
             return []
-        valid = [
+        result = [
             str(p).strip() for p in phrases
             if p and str(p).strip() not in ("", "Insufficient data.")
         ]
-        return valid[:3]
+        return result[:3]
 
     # ------------------------------------------------------------------
     # Tone guidance — country focus + what to avoid from LinkedIn profile
@@ -81,7 +84,7 @@ class FinalPayloadBuilder:
         """Return tone guidance for the email writer."""
         parts: list[str] = []
 
-        focus = role_country.get("country_specific_focus", "")
+        focus = role_country.get("country_specific_email_tone", "") or role_country.get("email_positioning_angle", "")
         if focus and focus.strip() not in ("", "Insufficient data."):
             parts.append(focus.strip())
 
