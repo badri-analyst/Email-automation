@@ -556,16 +556,15 @@ export async function runCampaign(request, response, next) {
 // Processes up to BATCH_CONCURRENCY emails at a time so the server can
 // handle multiple campaigns simultaneously without running out of memory.
 // ---------------------------------------------------------------------------
-const BATCH_CONCURRENCY = 2;       // 2 emails at a time — safe for free NVIDIA NIM (40 req/min per key)
-const BATCH_DELAY_MS = 2000;       // 2s pause between batches to stay under rate limits at 200 emails
+const BATCH_CONCURRENCY = 2;       // 2 emails at a time per user — safe for free NVIDIA NIM (40 req/min per key)
+const BATCH_DELAY_MS = 2000;       // 2s pause between batches to stay under rate limits
 
 // ---------------------------------------------------------------------------
 // Global concurrency semaphore — shared across ALL users and campaigns.
-// Caps total simultaneous email-processing slots on this server instance.
-// At 6 slots: ~6 Python subprocesses × ~75MB = ~450MB RAM (safe on Render Starter).
-// NVIDIA NIM rate limit: 6 concurrent AI calls stays well under free-tier limits.
+// Render Standard (2GB): 20 slots × ~75MB Python = ~1.5GB RAM — safe for 10 simultaneous users
+// Render Free (512MB):   change to 4 slots max
 // ---------------------------------------------------------------------------
-const MAX_GLOBAL_SLOTS = 4;        // 4 slots × ~75MB Python = ~300MB, safe on Render free 512MB
+const MAX_GLOBAL_SLOTS = 20;       // Render Standard $25/month — 2GB RAM supports 10 users × 2 slots
 let _activeSlots = 0;
 const _slotQueue = [];
 
