@@ -24,6 +24,7 @@ class FallbackEmailBuilder:
         linkedin = str(candidate.get("linkedin_url") or "").strip()
         youtube = str(candidate.get("youtube_url") or "").strip()
         portfolio = str(candidate.get("portfolio_url") or "").strip()
+        resume_url = str(candidate.get("resume_url") or "").strip()
         link_lines = []
         if linkedin:
             link_lines.append(f"LinkedIn: {linkedin}")
@@ -31,6 +32,8 @@ class FallbackEmailBuilder:
             link_lines.append(f"Why Hire Me: {youtube}")
         if portfolio:
             link_lines.append(f"Portfolio: {portfolio}")
+        if resume_url:
+            link_lines.append(f"Resume: {resume_url}")
         links_block = "\n".join(link_lines)
 
         parts = [

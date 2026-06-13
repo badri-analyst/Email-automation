@@ -108,6 +108,7 @@ class FinalPayloadBuilder:
             "linkedin_url": profile.get("linkedInUrl") or profile.get("linkedin_url") or "",
             "youtube_url": profile.get("youtubeUrl") or profile.get("youtube_url") or "",
             "portfolio_url": profile.get("portfolioUrl") or profile.get("portfolio_url") or "",
+            "resume_url": profile.get("resumeUrl") or profile.get("resume_url") or "",
             "phone": profile.get("phone") or "",
         }
 

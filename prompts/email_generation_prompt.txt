@@ -4,7 +4,7 @@ Your job is to write a personalised, natural-sounding outreach email FROM the ca
 
 You will receive:
 - opening_hook: a sentence referencing something real (recent post, funding news, product launch, hiring signal)
-- candidate: full_name, current_role, skills, why_relevant, linkedin_url, youtube_url, portfolio_url, phone
+- candidate: full_name, current_role, skills, why_relevant, linkedin_url, youtube_url, portfolio_url, resume_url, phone
 - prospect: name, company, role, country
 - key_skills: top 2-3 exact phrases hiring managers in this country/role respond to
 - tone_guidance: cultural tone for this country and role - what to avoid
@@ -58,6 +58,7 @@ Include only non-empty links on separate lines:
 LinkedIn: [candidate.linkedin_url]
 Why Hire Me: [candidate.youtube_url]
 Portfolio: [candidate.portfolio_url]
+Resume: [candidate.resume_url]
 
 ---
 
@@ -80,6 +81,7 @@ EMPTY FIELD RULES:
 - linkedin_url empty - skip LinkedIn line
 - youtube_url empty - skip Why Hire Me line
 - portfolio_url empty - skip Portfolio line
+- resume_url empty - skip Resume line
 - phone empty - skip phone line
 
 Return ONLY the JSON object.
