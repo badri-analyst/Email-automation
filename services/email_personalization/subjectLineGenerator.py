@@ -34,7 +34,7 @@ class SubjectLineGenerator:
             prospect.get("role")
             or candidate.get("target_role")
             or candidate.get("current_role")
-            or "Business Analyst"
+            or ""
         )
         role_skill = key_skills[0] if key_skills else target_role
         role_gap = key_skills[0] if key_skills else "workflow"

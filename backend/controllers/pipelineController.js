@@ -646,7 +646,7 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
     const row = record.row_data || {};
     const prospectId = `prospect-${index + 1}`;
     // Use row data if present (prospect-specific), otherwise fall back to candidate profile.
-    const targetRole = row.role || row.Role || candidate.targetRole || candidate.currentRole || 'Business Analyst';
+    const targetRole = row.role || row.Role || candidate.targetRole || candidate.currentRole || '';
     const targetCountry = row.country || row.Country || candidate.preferredCountries || '';
     const companyName = row.company || record.company_name || '';
     const recipientEmail = record.recipient_email || row.email;
@@ -1086,7 +1086,7 @@ export async function runPipeline(request, response, next) {
 
     for (const [index, row] of rows.entries()) {
       const prospectId = `prospect-${index + 1}`;
-      const targetRole = row.role || row.Role || candidate.targetRole || candidate.currentRole || 'Business Analyst';
+      const targetRole = row.role || row.Role || candidate.targetRole || candidate.currentRole || '';
       const targetCountry = row.country || row.Country || candidate.preferredCountries || '';
       const companyName = row.company || row.Company;
       const roleCountryOutput = await runPython('role-country', {

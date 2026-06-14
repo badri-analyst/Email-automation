@@ -9,7 +9,7 @@ class FallbackEmailBuilder:
         candidate = payload.get("candidate", {})
         key_skills = payload.get("key_skills") or []
 
-        role = str(prospect.get("role") or "Business Analyst").strip()
+        role = str(prospect.get("role") or "").strip()
         company = str(prospect.get("company") or "your team").strip()
         name = str(candidate.get("full_name") or "").strip()
         current_role = str(candidate.get("current_role") or role).strip()
