@@ -32,6 +32,7 @@ class SubjectLineGenerator:
 
         target_role = (
             prospect.get("role")
+            or candidate.get("target_role")
             or candidate.get("current_role")
             or "Business Analyst"
         )

@@ -21,6 +21,7 @@ const initial = {
   portfolioUrl: '',
   resumeUrl: '',
   currentRole: '',
+  targetRole: '',
   skills: '',
   preferredCountries: '',
   resumeSummary: '',
@@ -142,6 +143,7 @@ export default function CandidateForm({ highlightGmail = false }) {
         ['portfolioUrl', 'Portfolio URL', 'url'],
         ['resumeUrl', 'Resume Link (Google Drive / Dropbox)', 'url'],
         ['currentRole', 'Current Role', 'text'],
+        ['targetRole', 'Role You Are Targeting (e.g. SAP Basis Consultant)', 'text'],
         ['skills', 'Skills', 'text'],
         ['preferredCountries', 'Preferred Countries', 'text'],
       ].map(([key, label, type]) => (
