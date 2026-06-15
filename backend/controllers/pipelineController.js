@@ -835,7 +835,7 @@ export async function candidateAssets(request, response, next) {
 
     const supabase = getSupabase();
     if (supabase) {
-      // Fetch existing row to preserve resume upload columns
+      // Fetch the single canonical profile row for this candidate
       const { data: existing } = await supabase
         .from('candidate_assets_results')
         .select('id, resume_storage_path, resume_filename, resume_mime_type')
@@ -843,6 +843,15 @@ export async function candidateAssets(request, response, next) {
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      // Delete any duplicate rows (old per-campaign rows) — keep only one per candidate
+      if (existing?.id) {
+        await supabase
+          .from('candidate_assets_results')
+          .delete()
+          .eq('candidate_id', candidateId)
+          .neq('id', existing.id);
+      }
 
       const profileRow = {
         campaign_id: output.campaign_id || campaignId,
