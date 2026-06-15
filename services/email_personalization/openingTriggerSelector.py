@@ -29,7 +29,8 @@ class OpeningTriggerSelector:
 
         sources["fallback_used"] = True
         prospect = payload.get("prospect", {})
-        role = prospect.get("role") or "Business Analyst"
+        candidate = payload.get("candidate", {})
+        role = prospect.get("role") or candidate.get("target_role") or candidate.get("current_role") or "this role"
         return f"I wanted to reach out with a focused note about {role} opportunities.", "role-based fallback", sources
 
     @staticmethod

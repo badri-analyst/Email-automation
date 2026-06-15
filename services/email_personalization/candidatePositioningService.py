@@ -12,7 +12,7 @@ class CandidatePositioningService:
         name = str(candidate.get("full_name") or "").strip()
         current_role = str(candidate.get("current_role") or "").strip()
         why_relevant = str(candidate.get("why_relevant") or "").strip()
-        role = str(prospect.get("role") or current_role or "Business Analyst").strip()
+        role = str(prospect.get("role") or candidate.get("target_role") or current_role or "").strip()
 
         skill_phrase = f", specialising in {key_skills[0]}" if key_skills else ""
         intro = f"I am {name}, a {current_role}{skill_phrase}." if name and current_role else f"I am a {role} professional{skill_phrase}."
