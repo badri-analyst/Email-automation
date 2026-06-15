@@ -1,7 +1,7 @@
 """Schemas for deterministic email personalization."""
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,18 +15,7 @@ EmailGenerationStatus = Literal[
     "blocked_unsafe_content",
     "email_generation_failed",
 ]
-SubjectType = Literal[
-    "observation + company",
-    "reverse psychology",
-    "hiring signal",
-    "human curiosity",
-    "executive hook",
-    "executive problem hook",
-    "executive personalised hook",
-    "seeking opportunity",
-    "soft FOMO",
-    "fallback",
-]
+SubjectType = str  # open string — new subject types must not break validation
 CtaType = Literal["quick look", "short reply", "resume review", "fit check", "permission to send ideas"]
 
 
