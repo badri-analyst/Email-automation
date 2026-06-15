@@ -835,13 +835,16 @@ export async function candidateAssets(request, response, next) {
 
     const supabase = getSupabase();
     if (supabase) {
-      await assertSupabaseWrite(await supabase
+      // Fetch existing row to preserve resume upload columns
+      const { data: existing } = await supabase
         .from('candidate_assets_results')
-        .delete()
-        .eq('campaign_id', campaignId)
-        .eq('candidate_id', candidateId), 'Supabase candidate profile cleanup failed');
+        .select('id, resume_storage_path, resume_filename, resume_mime_type')
+        .eq('candidate_id', candidateId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      await assertSupabaseWrite(await supabase.from('candidate_assets_results').insert({
+      const profileRow = {
         campaign_id: output.campaign_id || campaignId,
         candidate_id: output.candidate_id || candidateId,
         proof_status: output.proof_status || 'partial_proof_available',
@@ -853,6 +856,10 @@ export async function candidateAssets(request, response, next) {
           resume_type: body.resumeFileName ? 'uploaded_metadata' : '',
           resume_reference_url: body.resumeUrl || body.resumeFileName || '',
         },
+        // Preserve resume upload columns — never overwrite with empty
+        resume_storage_path: existing?.resume_storage_path || '',
+        resume_filename: existing?.resume_filename || '',
+        resume_mime_type: existing?.resume_mime_type || '',
         video_assets: output.video_assets || [],
         portfolio_assets: output.portfolio_assets || [],
         professional_positioning_summary: output.professional_positioning_summary || body.whyRelevant || 'Insufficient supporting proof.',
@@ -881,7 +888,20 @@ export async function candidateAssets(request, response, next) {
           },
         },
         updated_at: new Date().toISOString(),
-      }), 'Supabase candidate profile save failed');
+      };
+
+      if (existing?.id) {
+        // Update existing row — preserves resume upload columns
+        await assertSupabaseWrite(
+          await supabase.from('candidate_assets_results').update(profileRow).eq('id', existing.id),
+          'Supabase candidate profile save failed',
+        );
+      } else {
+        await assertSupabaseWrite(
+          await supabase.from('candidate_assets_results').insert(profileRow),
+          'Supabase candidate profile save failed',
+        );
+      }
     }
 
     response.json({ ...output, candidate_profile_saved: Boolean(supabase), database_status: supabase ? 'saved' : 'not_configured' });
