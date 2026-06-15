@@ -829,7 +829,7 @@ export async function candidateAssets(request, response, next) {
       portfolio_links: [body.githubUrl, body.portfolioUrl].filter(Boolean),
       candidate_positioning: body.whyRelevant || body.candidate_positioning,
       candidate_proof_points: [body.resumeSummary, body.skills].filter(Boolean),
-      target_role: body.currentRole || 'Business Analyst',
+      target_role: body.targetRole || body.currentRole || '',
     };
     const output = await runPython('candidate-assets', payload);
 
@@ -875,6 +875,8 @@ export async function candidateAssets(request, response, next) {
             preferredCountries: body.preferredCountries || '',
             resumeSummary: body.resumeSummary || '',
             resumeFileName: body.resumeFileName || '',
+            resumeUrl: body.resumeUrl || '',
+            targetRole: body.targetRole || '',
             userId: user.id,
           },
         },
@@ -920,16 +922,26 @@ export async function uploadResume(request, response, next) {
 
     if (uploadError) throw new Error(`Resume upload failed: ${uploadError.message}`);
 
-    // Save storage path back to candidate_assets_results
-    await supabase
+    // Save storage path — upsert so it works even if profile row doesn't exist yet
+    const { data: existing } = await supabase
       .from('candidate_assets_results')
-      .update({
-        resume_storage_path: storagePath,
-        resume_filename: file.originalname,
-        resume_mime_type: file.mimetype,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('candidate_id', user.email);
+      .select('id')
+      .eq('candidate_id', user.email)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await supabase
+        .from('candidate_assets_results')
+        .update({
+          resume_storage_path: storagePath,
+          resume_filename: file.originalname,
+          resume_mime_type: file.mimetype,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id);
+    }
 
     response.json({ resume_storage_path: storagePath, resume_filename: file.originalname });
   } catch (error) {
