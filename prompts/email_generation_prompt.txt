@@ -55,7 +55,9 @@ Use the opening_hook. Reference something the prospect invested in - their Linke
 Never open with "I hope this email finds you well" or "My name is".
 
 Paragraph 2 - ACTION setup: candidate intro + fit (2 to 3 sentences):
-Introduce candidate.full_name and candidate.current_role. If candidate.target_role is set, position the candidate as targeting that specific role - use it in the intro and key_skills framing. Use key_skills exact phrases - these are the words that resonate with hiring managers in prospect.country for this role. Explain fit using candidate.why_relevant. Be direct - no filler phrases.
+ALWAYS write in FIRST PERSON. The candidate is writing this email themselves. Use "I", "my", "me" - never "he", "she", "his", "her", or the candidate's name as subject.
+Introduce yourself as candidate.full_name with candidate.current_role. If candidate.target_role is set, position yourself as targeting that specific role. Use key_skills exact phrases. Explain fit using candidate.why_relevant. Be direct - no filler phrases.
+Example: "I am Subbarao, a SAP Basis Consultant with experience in ERP scaling." NOT "Subbarao specialises in SAP Basis..."
 
 Paragraph 3 - VARIABLE REWARD + ACTION (1 to 2 sentences):
 Create curiosity about what they will find. Don't reveal everything - point them to the profile/video as a discovery. The CTA must be the lowest possible friction - not "schedule a meeting", just "take a look".
@@ -80,6 +82,7 @@ PUNCTUATION RULES:
 - No placeholder text - use actual values from input
 
 TONE RULES:
+- FIRST PERSON ONLY: every sentence uses I / my / me. Never write "he", "she", "his", "her", or refer to the candidate in third person
 - Follow tone_guidance - formal country = formal tone, conversational = write like a real human message
 - Never use: "I am writing to express my interest", "I believe I would be a great fit", "Please find attached", "Dear Sir/Madam"
 - Never invent skills or achievements not in the candidate data
