@@ -12,10 +12,17 @@ class FallbackEmailBuilder:
         role = str(prospect.get("role") or "").strip()
         company = str(prospect.get("company") or "your team").strip()
         name = str(candidate.get("full_name") or "").strip()
-        current_role = str(candidate.get("current_role") or role).strip()
+        display_role = str(candidate.get("current_role") or candidate.get("target_role") or role).strip()
         skill_phrase = f", with a focus on {key_skills[0]}" if key_skills else ""
 
-        intro = f"I am {name}, a {current_role}{skill_phrase}." if name else f"I am a {current_role}{skill_phrase}."
+        if name and display_role:
+            intro = f"I am {name}, a {display_role}{skill_phrase}."
+        elif name:
+            intro = f"I am {name}, reaching out about this opportunity."
+        elif display_role:
+            intro = f"I am a {display_role} professional{skill_phrase}."
+        else:
+            intro = "I wanted to introduce myself and explore potential opportunities."
 
         phone = str(candidate.get("phone") or "").strip()
         sign_off_lines = ["Regards,", name or ""] + ([phone] if phone else [])
@@ -36,8 +43,9 @@ class FallbackEmailBuilder:
             link_lines.append(f"Portfolio: {portfolio}")
         links_block = "\n".join(link_lines)
 
+        opening = f"I wanted to reach out about {display_role} opportunities at {company}." if display_role else f"I wanted to reach out about opportunities at {company}."
         parts = [
-            f"I wanted to reach out about {role} opportunities at {company}.",
+            opening,
             intro,
             "I can share a concise example of how I approach requirements clarity, stakeholder alignment, and business-tech communication.",
             cta_sentence,
