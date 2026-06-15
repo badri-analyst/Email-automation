@@ -131,7 +131,7 @@ export default function PipelineExecution() {
 
     setRunning(true);
     setDone(false);
-    setSummary({ processed: 0, sent: 0, failed: total });
+    setSummary({ processed: 0, sent: 0, failed: 0 });
     setStepStatuses(STEP_NAMES.map((_, i) =>
       i === 0 ? { status: 'active', reason: 'Processing…', processed: 0 }
               : { status: 'pending', reason: 'Waiting for input', processed: 0 },
