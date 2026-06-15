@@ -1,9 +1,5 @@
 {
   "hallucination_risks": [
-    "I saw your funding",
-    "your recent acquisition",
-    "your Series A",
-    "your recruiter priorities",
     "I noticed your private"
   ],
   "sensitive_assumptions": [
