@@ -21,6 +21,9 @@ SubjectType = Literal[
     "hiring signal",
     "human curiosity",
     "executive hook",
+    "executive problem hook",
+    "executive personalised hook",
+    "seeking opportunity",
     "soft FOMO",
     "fallback",
 ]
