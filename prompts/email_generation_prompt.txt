@@ -57,7 +57,7 @@ Never open with "I hope this email finds you well" or "My name is".
 Paragraph 2 - ACTION setup: candidate intro + fit (2 to 3 sentences):
 ALWAYS write in FIRST PERSON. The candidate is writing this email themselves. Use "I", "my", "me" - never "he", "she", "his", "her", or the candidate's name as subject.
 Introduce yourself as candidate.full_name with candidate.current_role. If candidate.target_role is set, position yourself as targeting that specific role. Use key_skills exact phrases. Explain fit using candidate.why_relevant. Be direct - no filler phrases.
-Example: "I am Subbarao, a SAP Basis Consultant with experience in ERP scaling." NOT "Subbarao specialises in SAP Basis..."
+Example: "Subbarao Ravva here, a SAP Basis Consultant with experience in ERP scaling." or "I am Subbarao, a SAP Basis Consultant focused on ERP scaling." NOT "Subbarao specialises in SAP Basis..."
 
 Paragraph 3 - VARIABLE REWARD + ACTION (1 to 2 sentences):
 Create curiosity about what they will find. Don't reveal everything - point them to the profile/video as a discovery. The CTA must be the lowest possible friction - not "schedule a meeting", just "take a look".
