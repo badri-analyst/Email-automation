@@ -22,7 +22,11 @@ export function runPython(moduleName, payload) {
     }, PYTHON_TIMEOUT_MS);
 
     child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.stderr.on('data', (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      process.stderr.write(`[python:${moduleName}] ${text}`);
+    });
     child.on('error', (err) => { clearTimeout(killTimer); reject(err); });
     child.on('close', (code) => {
       clearTimeout(killTimer);
