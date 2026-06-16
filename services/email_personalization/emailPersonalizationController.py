@@ -65,8 +65,10 @@ class EmailPersonalizationController:
 
         # --- AI-first path ---
         request_dict = request.model_dump()
-        request_dict["api_key"] = payload.get("api_key", "") or ""
-        request_dict["backup_api_key"] = payload.get("backup_api_key", "") or ""
+        request_dict["api_key"] = request.api_key or payload.get("api_key", "") or ""
+        request_dict["backup_api_key"] = request.backup_api_key or payload.get("backup_api_key", "") or ""
+        request_dict["base_url"] = request.base_url or payload.get("base_url", "") or ""
+        request_dict["model"] = request.model or payload.get("model", "") or ""
         ai_result = emailGenerationAiService.enhance(request_dict)
         if ai_result and ai_result.get("subject_line") and ai_result.get("email_body"):
             subject = _clean_text(ai_result["subject_line"])

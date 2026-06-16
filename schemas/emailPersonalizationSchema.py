@@ -32,6 +32,10 @@ class EmailPersonalizationInput(StrictEmailModel):
     prospect_id: str = ""
     final_personalization_payload: dict = Field(default_factory=dict)
     variant: str = "recruiter"
+    api_key: str = ""
+    backup_api_key: str = ""
+    base_url: str = ""
+    model: str = ""
 
 
 class PersonalizationUsed(StrictEmailModel):
