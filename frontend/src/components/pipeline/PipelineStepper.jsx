@@ -3,8 +3,6 @@ import StatusBadge from '../ui/StatusBadge.jsx';
 export const pipelineSteps = [
   'Validation',
   'Cleaning',
-  'Role-Country Intelligence',
-  'LinkedIn Research',
   'Company Research',
   'Candidate Assets',
   'Decision Engine',

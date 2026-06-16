@@ -11,8 +11,6 @@ const POLL_INTERVAL_MS = 8000; // poll every 8s — 200 emails takes ~20 min on 
 const STEP_NAMES = [
   'Validation',
   'Cleaning',
-  'Role-Country Intelligence',
-  'LinkedIn Research',
   'Company Research',
   'Candidate Assets',
   'Decision Engine',
