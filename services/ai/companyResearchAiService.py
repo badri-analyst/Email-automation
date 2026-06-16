@@ -52,5 +52,6 @@ def enhance(input_data: dict) -> dict | None:
         logger.info("Company research AI call succeeded for '%s'", input_data.get("company_name"))
         return result
     except Exception as exc:
-        logger.warning("Company research AI call failed: %s", exc)
+        logger.error("Company research AI call FAILED (api_key_prefix=%s, base_url=%s, model=%s): %s",
+                     api_key[:10] if api_key else "none", base_url, model, exc)
         return None

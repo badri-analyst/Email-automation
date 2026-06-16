@@ -57,5 +57,6 @@ def enhance(input_data: dict) -> dict | None:
                     input_data.get("prospect_id", "unknown"))
         return result
     except Exception as exc:
-        logger.warning("Email generation AI call failed: %s", exc)
+        logger.error("Email generation AI call FAILED (api_key_prefix=%s, base_url=%s, model=%s): %s",
+                     api_key[:10] if api_key else "none", base_url, model, exc)
         return None
