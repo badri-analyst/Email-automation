@@ -1,9 +1,9 @@
-"""Python AI client supporting NVIDIA NIM and Google Gemini.
+"""Universal AI client — works with any OpenAI-compatible API.
 
-Accepts api_key directly (from candidate profile) or falls back to env vars.
-Auto-detects provider from key prefix:
-  - nvapi-*  → NVIDIA NIM
-  - AIza*    → Google Gemini (OpenAI-compatible endpoint)
+Accepts any API key, base URL, and model name.
+Falls back to environment variables if not provided by candidate.
+Supports: NVIDIA NIM, Google Gemini, OpenAI, Anthropic (via compatible endpoint),
+          Together AI, Groq, Mistral, and any other OpenAI-compatible provider.
 """
 
 import json
@@ -12,70 +12,86 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 DEFAULT_TIMEOUT = 90  # seconds
 
+# Default fallback config when candidate has not provided keys
 MODULE_CONFIG: dict[str, dict[str, str]] = {
     "company-research": {
-        "nvidia_model": "meta/llama-4-maverick-17b-128e-instruct",
-        "gemini_model": "gemini-1.5-flash",
         "api_key_env": "COMPANY_RESEARCH_API_KEY",
         "backup_key_env": "COMPANY_RESEARCH_BACKUP_KEY",
+        "base_url_env": "COMPANY_RESEARCH_BASE_URL",
+        "model_env": "COMPANY_RESEARCH_MODEL",
+        "default_base_url": "https://integrate.api.nvidia.com/v1",
+        "default_model": "meta/llama-4-maverick-17b-128e-instruct",
     },
     "email-personalization": {
-        "nvidia_model": "mistralai/mistral-large-3-675b-instruct-2512",
-        "gemini_model": "gemini-1.5-flash",
         "api_key_env": "EMAIL_WRITING_API_KEY",
         "backup_key_env": "EMAIL_WRITING_BACKUP_KEY",
+        "base_url_env": "EMAIL_WRITING_BASE_URL",
+        "model_env": "EMAIL_WRITING_MODEL",
+        "default_base_url": "https://integrate.api.nvidia.com/v1",
+        "default_model": "mistralai/mistral-large-3-675b-instruct-2512",
     },
 }
 
 
-def detect_provider(api_key: str) -> str:
-    """Return 'gemini' or 'nvidia' based on key prefix."""
-    if api_key.startswith("AIza") or api_key.startswith("AQ."):
-        return "gemini"
-    return "nvidia"
-
-
-def _get_base_url(provider: str) -> str:
-    if provider == "gemini":
-        return GEMINI_BASE_URL
-    return os.environ.get("NVIDIA_API_BASE_URL", NVIDIA_BASE_URL).rstrip("/")
-
-
-def _get_model(module_name: str, provider: str) -> str:
+def _resolve_config(
+    module_name: str,
+    api_key: str = "",
+    backup_api_key: str = "",
+    base_url: str = "",
+    model: str = "",
+) -> dict[str, Any]:
+    """Resolve final config — candidate values take priority over env vars."""
     config = MODULE_CONFIG.get(module_name, {})
-    if provider == "gemini":
-        return config.get("gemini_model", "gemini-1.5-flash")
-    return config.get("nvidia_model", "mistralai/mistral-large-3-675b-instruct-2512")
 
-
-def _resolve_key(module_name: str, primary: str = "", backup: str = "") -> tuple[str, str]:
-    """Return (primary_key, backup_key) — candidate keys take priority over env vars."""
-    config = MODULE_CONFIG.get(module_name, {})
-    resolved_primary = (
-        primary
+    resolved_key = (
+        api_key.strip()
         or os.environ.get(config.get("api_key_env", ""), "")
         or os.environ.get("NVIDIA_API_KEY", "")
         or os.environ.get("AI_API_KEY", "")
+        or os.environ.get("OPENAI_API_KEY", "")
     )
     resolved_backup = (
-        backup
+        backup_api_key.strip()
         or os.environ.get(config.get("backup_key_env", ""), "")
     )
-    return resolved_primary, resolved_backup
+    resolved_base_url = (
+        base_url.strip()
+        or os.environ.get(config.get("base_url_env", ""), "")
+        or os.environ.get("AI_API_BASE_URL", "")
+        or config.get("default_base_url", "https://integrate.api.nvidia.com/v1")
+    ).rstrip("/")
+    resolved_model = (
+        model.strip()
+        or os.environ.get(config.get("model_env", ""), "")
+        or os.environ.get("AI_MODEL", "")
+        or config.get("default_model", "")
+    )
+
+    return {
+        "api_key": resolved_key,
+        "backup_api_key": resolved_backup,
+        "base_url": resolved_base_url,
+        "model": resolved_model,
+    }
 
 
-def _call_once(api_key: str, module_name: str, system_prompt: str, user_message: str, temperature: float, max_tokens: int) -> dict[str, Any]:
-    """Make one API call with a specific key. Raises RuntimeError on failure."""
+def _call_once(
+    api_key: str,
+    base_url: str,
+    model: str,
+    module_name: str,
+    system_prompt: str,
+    user_message: str,
+    temperature: float,
+    max_tokens: int,
+) -> dict[str, Any]:
+    """Make one API call. Raises RuntimeError on failure."""
     if not api_key:
         raise RuntimeError(f"No API key provided for module '{module_name}'.")
 
-    provider = detect_provider(api_key)
-    url = f"{_get_base_url(provider)}/chat/completions"
-    model = _get_model(module_name, provider)
+    url = f"{base_url}/chat/completions"
 
     payload = json.dumps({
         "model": model,
@@ -103,22 +119,22 @@ def _call_once(api_key: str, module_name: str, system_prompt: str, user_message:
             raw = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"AI API HTTP {exc.code} for '{module_name}' ({provider}): {body}") from exc
+        raise RuntimeError(f"API HTTP {exc.code} error for '{module_name}': {body[:300]}") from exc
     except urllib.error.URLError as exc:
-        raise RuntimeError(f"AI API connection error for '{module_name}': {exc.reason}") from exc
+        raise RuntimeError(f"API connection error for '{module_name}': {exc.reason}") from exc
     except TimeoutError as exc:
-        raise RuntimeError(f"AI API timed out after {DEFAULT_TIMEOUT}s for '{module_name}'") from exc
+        raise RuntimeError(f"API timed out after {DEFAULT_TIMEOUT}s for '{module_name}'") from exc
 
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"AI API returned non-JSON for '{module_name}'") from exc
+        raise RuntimeError(f"API returned non-JSON for '{module_name}'") from exc
 
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
     if not content:
-        raise RuntimeError(f"AI API returned empty content for '{module_name}'")
+        raise RuntimeError(f"API returned empty content for '{module_name}'")
 
-    # Strip markdown code fences if present
+    # Strip markdown code fences if model wraps response in them
     if content.startswith("```"):
         lines = content.splitlines()
         inner = lines[1:] if len(lines) > 1 else lines
@@ -129,7 +145,9 @@ def _call_once(api_key: str, module_name: str, system_prompt: str, user_message:
     try:
         return json.loads(content)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"AI response for '{module_name}' was not valid JSON: {content[:200]}") from exc
+        raise RuntimeError(
+            f"API response for '{module_name}' was not valid JSON: {content[:200]}"
+        ) from exc
 
 
 def call_ai(
@@ -140,42 +158,39 @@ def call_ai(
     max_tokens: int = 2000,
     api_key: str = "",
     backup_api_key: str = "",
+    base_url: str = "",
+    model: str = "",
 ) -> dict[str, Any]:
-    """Call AI with primary key, fallback to backup on failure.
+    """Call any OpenAI-compatible AI API. Tries primary key first, then backup.
 
-    Args:
-        module_name: Pipeline step name.
-        system_prompt: System-level instruction.
-        user_message: User-level payload (serialised JSON).
-        temperature: Sampling temperature.
-        max_tokens: Max tokens in response.
-        api_key: Candidate's primary API key (overrides env var).
-        backup_api_key: Candidate's backup API key (used if primary fails).
-
-    Returns:
-        Parsed dict from AI response.
-
-    Raises:
-        RuntimeError: If both keys fail or no keys are configured.
+    Works with NVIDIA, Gemini, OpenAI, Groq, Together, Mistral, or any
+    provider that exposes an OpenAI-compatible /chat/completions endpoint.
     """
-    primary, backup = _resolve_key(module_name, api_key, backup_api_key)
+    cfg = _resolve_config(module_name, api_key, backup_api_key, base_url, model)
+    primary_err = None
 
-    # Try primary key
-    if primary:
+    if cfg["api_key"]:
         try:
-            return _call_once(primary, module_name, system_prompt, user_message, temperature, max_tokens)
-        except RuntimeError as primary_err:
-            if backup:
-                pass  # fall through to backup
-            else:
-                raise RuntimeError(f"API key failed: {primary_err}") from primary_err
+            return _call_once(
+                cfg["api_key"], cfg["base_url"], cfg["model"],
+                module_name, system_prompt, user_message, temperature, max_tokens,
+            )
+        except RuntimeError as exc:
+            primary_err = exc
+            if not cfg["backup_api_key"]:
+                raise RuntimeError(f"API key failed for '{module_name}': {exc}") from exc
 
-    # Try backup key
-    if backup:
+    if cfg["backup_api_key"]:
         try:
-            return _call_once(backup, module_name, system_prompt, user_message, temperature, max_tokens)
+            return _call_once(
+                cfg["backup_api_key"], cfg["base_url"], cfg["model"],
+                module_name, system_prompt, user_message, temperature, max_tokens,
+            )
         except RuntimeError as backup_err:
-            raise RuntimeError(f"Both API keys failed. Primary: {primary_err if primary else 'not set'}. Backup: {backup_err}") from backup_err
+            raise RuntimeError(
+                f"Both API keys failed for '{module_name}'. "
+                f"Primary: {primary_err or 'not set'}. Backup: {backup_err}"
+            ) from backup_err
 
     raise RuntimeError(
         f"No API key configured for '{module_name}'. "
@@ -184,6 +199,6 @@ def call_ai(
 
 
 def is_ai_configured(module_name: str, api_key: str = "", backup_api_key: str = "") -> bool:
-    """Return True if at least one API key is available for this module."""
-    primary, backup = _resolve_key(module_name, api_key, backup_api_key)
-    return bool(primary or backup)
+    """Return True if at least one API key is available."""
+    cfg = _resolve_config(module_name, api_key, backup_api_key)
+    return bool(cfg["api_key"] or cfg["backup_api_key"])

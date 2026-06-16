@@ -673,6 +673,8 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         approved_sources: [],
         api_key: candidate.companyResearchApiKey || '',
         backup_api_key: candidate.companyResearchBackupKey || '',
+        base_url: candidate.companyResearchBaseUrl || '',
+        model: candidate.companyResearchModel || '',
       };
       const companyOutput = await safeRunPython('company-research', companyInput);
 
@@ -694,6 +696,8 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         final_personalization_payload: decisionOutput.final_personalization_payload,
         api_key: candidate.emailWritingApiKey || '',
         backup_api_key: candidate.emailWritingBackupKey || '',
+        base_url: candidate.emailWritingBaseUrl || '',
+        model: candidate.emailWritingModel || '',
       };
       emailOutput = await safeRunPython('email-personalization', emailInput);
 
@@ -883,8 +887,12 @@ export async function candidateAssets(request, response, next) {
             targetRole: body.targetRole || '',
             companyResearchApiKey: body.companyResearchApiKey || '',
             companyResearchBackupKey: body.companyResearchBackupKey || '',
+            companyResearchBaseUrl: body.companyResearchBaseUrl || '',
+            companyResearchModel: body.companyResearchModel || '',
             emailWritingApiKey: body.emailWritingApiKey || '',
             emailWritingBackupKey: body.emailWritingBackupKey || '',
+            emailWritingBaseUrl: body.emailWritingBaseUrl || '',
+            emailWritingModel: body.emailWritingModel || '',
             userId: user.id,
           },
         },

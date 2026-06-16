@@ -23,6 +23,8 @@ def enhance(input_data: dict) -> dict | None:
     """
     api_key = input_data.get("api_key", "") or ""
     backup_api_key = input_data.get("backup_api_key", "") or ""
+    base_url = input_data.get("base_url", "") or ""
+    model = input_data.get("model", "") or ""
 
     if not is_ai_configured(_MODULE, api_key, backup_api_key):
         logger.debug("Company research AI not configured — using deterministic pipeline.")
@@ -44,6 +46,8 @@ def enhance(input_data: dict) -> dict | None:
             max_tokens=1500,
             api_key=api_key,
             backup_api_key=backup_api_key,
+            base_url=base_url,
+            model=model,
         )
         logger.info("Company research AI call succeeded for '%s'", input_data.get("company_name"))
         return result

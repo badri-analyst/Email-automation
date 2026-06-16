@@ -101,6 +101,8 @@ class DecisionEngineController:
         final_payload_dict = final_payload if isinstance(final_payload, dict) else final_payload.model_dump()
         final_payload_dict["api_key"] = candidate_profile.get("emailWritingApiKey") or candidate_profile.get("email_writing_api_key") or ""
         final_payload_dict["backup_api_key"] = candidate_profile.get("emailWritingBackupKey") or candidate_profile.get("email_writing_backup_key") or ""
+        final_payload_dict["base_url"] = candidate_profile.get("emailWritingBaseUrl") or candidate_profile.get("email_writing_base_url") or ""
+        final_payload_dict["model"] = candidate_profile.get("emailWritingModel") or candidate_profile.get("email_writing_model") or ""
 
         output = DecisionOutput(
             campaign_id=request.campaign_id,

@@ -27,8 +27,12 @@ const initial = {
   resumeSummary: '',
   companyResearchApiKey: '',
   companyResearchBackupKey: '',
+  companyResearchBaseUrl: '',
+  companyResearchModel: '',
   emailWritingApiKey: '',
   emailWritingBackupKey: '',
+  emailWritingBaseUrl: '',
+  emailWritingModel: '',
 };
 
 export default function CandidateForm({ highlightGmail = false }) {
@@ -174,25 +178,48 @@ export default function CandidateForm({ highlightGmail = false }) {
 
       {/* API Keys Section */}
       <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="mb-3 text-sm font-semibold text-slate-700">AI API Keys</p>
+        <p className="mb-1 text-sm font-semibold text-slate-700">AI API Keys</p>
         <p className="mb-4 text-xs text-slate-500">
-          Get free keys from <a href="https://build.nvidia.com" target="_blank" rel="noreferrer" className="text-blue-600 underline">NVIDIA NIM</a> (1000/day) or <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-blue-600 underline">Google Gemini</a> (1500/day free).
-          NVIDIA keys start with <code className="bg-slate-100 px-1 rounded">nvapi-</code>, Gemini keys start with <code className="bg-slate-100 px-1 rounded">AIza</code>.
+          Works with any provider — NVIDIA, Gemini, OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible API.
+          Leave Base URL and Model blank to use defaults (NVIDIA NIM).
         </p>
-        <div className="grid gap-4 lg:grid-cols-2">
+
+        <p className="mb-2 text-xs font-semibold text-slate-600 uppercase tracking-wide">Company Research</p>
+        <div className="grid gap-3 lg:grid-cols-2 mb-4">
           {[
-            ['companyResearchApiKey', 'Company Research — Primary Key'],
-            ['companyResearchBackupKey', 'Company Research — Backup Key'],
-            ['emailWritingApiKey', 'Email Writing — Primary Key'],
-            ['emailWritingBackupKey', 'Email Writing — Backup Key'],
-          ].map(([key, label]) => (
+            ['companyResearchApiKey', 'Primary API Key', 'password', 'Your API key'],
+            ['companyResearchBackupKey', 'Backup API Key', 'password', 'Backup key (optional)'],
+            ['companyResearchBaseUrl', 'Base URL (optional)', 'url', 'https://integrate.api.nvidia.com/v1'],
+            ['companyResearchModel', 'Model (optional)', 'text', 'meta/llama-4-maverick-17b-128e-instruct'],
+          ].map(([key, label, type, placeholder]) => (
             <label key={key} className="block">
               <span className="text-sm font-medium text-slate-700">{label}</span>
               <input
-                type="password"
+                type={type}
                 value={form[key] || ''}
                 onChange={(event) => update(key, event.target.value)}
-                placeholder="nvapi-... or AIza..."
+                placeholder={placeholder}
+                className="focus-ring mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white font-mono"
+              />
+            </label>
+          ))}
+        </div>
+
+        <p className="mb-2 text-xs font-semibold text-slate-600 uppercase tracking-wide">Email Writing</p>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {[
+            ['emailWritingApiKey', 'Primary API Key', 'password', 'Your API key'],
+            ['emailWritingBackupKey', 'Backup API Key', 'password', 'Backup key (optional)'],
+            ['emailWritingBaseUrl', 'Base URL (optional)', 'url', 'https://integrate.api.nvidia.com/v1'],
+            ['emailWritingModel', 'Model (optional)', 'text', 'mistralai/mistral-large-3-675b-instruct-2512'],
+          ].map(([key, label, type, placeholder]) => (
+            <label key={key} className="block">
+              <span className="text-sm font-medium text-slate-700">{label}</span>
+              <input
+                type={type}
+                value={form[key] || ''}
+                onChange={(event) => update(key, event.target.value)}
+                placeholder={placeholder}
                 className="focus-ring mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white font-mono"
               />
             </label>
