@@ -56,6 +56,10 @@ class FinalPersonalizationPayload(StrictDecisionModel):
     prospect: dict[str, Any] = Field(default_factory=dict)
     key_skills: list[str] = Field(default_factory=list)
     tone_guidance: str = ""
+    api_key: str = ""
+    backup_api_key: str = ""
+    base_url: str = ""
+    model: str = ""
 
 
 class DecisionOutput(StrictDecisionModel):
