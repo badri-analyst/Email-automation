@@ -34,7 +34,7 @@ MODULE_CONFIG: dict[str, dict[str, str]] = {
 
 def detect_provider(api_key: str) -> str:
     """Return 'gemini' or 'nvidia' based on key prefix."""
-    if api_key.startswith("AIza"):
+    if api_key.startswith("AIza") or api_key.startswith("AQ."):
         return "gemini"
     return "nvidia"
 
