@@ -1,4 +1,4 @@
-"""AI-powered email generation using NVIDIA Mistral Large."""
+"""AI-powered email generation using NVIDIA or Gemini."""
 
 import json
 from pathlib import Path
@@ -19,11 +19,13 @@ def _load_prompt() -> str:
 def enhance(input_data: dict) -> dict | None:
     """Call AI to generate a personalised outreach email.
 
-    Returns a dict with subject_line, email_body, tone_used, and
-    email_generation_status on success.
+    Returns a dict with subject_line, email_body, tone_used on success.
     Returns None if AI is not configured or the call fails.
     """
-    if not is_ai_configured(_MODULE):
+    api_key = input_data.get("api_key", "") or ""
+    backup_api_key = input_data.get("backup_api_key", "") or ""
+
+    if not is_ai_configured(_MODULE, api_key, backup_api_key):
         logger.debug("Email generation AI not configured — using deterministic builder.")
         return None
 
@@ -44,10 +46,12 @@ def enhance(input_data: dict) -> dict | None:
             user_message=user_message,
             temperature=0.4,
             max_tokens=1200,
+            api_key=api_key,
+            backup_api_key=backup_api_key,
         )
         logger.info("Email generation AI call succeeded for prospect_id='%s'",
                     input_data.get("prospect_id", "unknown"))
         return result
     except Exception as exc:
-        logger.warning("Email generation AI call failed — falling back to deterministic builder: %s", exc)
+        logger.warning("Email generation AI call failed: %s", exc)
         return None

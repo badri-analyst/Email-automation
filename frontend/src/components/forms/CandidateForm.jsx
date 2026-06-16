@@ -25,6 +25,10 @@ const initial = {
   skills: '',
   preferredCountries: '',
   resumeSummary: '',
+  companyResearchApiKey: '',
+  companyResearchBackupKey: '',
+  emailWritingApiKey: '',
+  emailWritingBackupKey: '',
 };
 
 export default function CandidateForm({ highlightGmail = false }) {
@@ -166,6 +170,34 @@ export default function CandidateForm({ highlightGmail = false }) {
           onAccountsChange={setGmailAccounts}
           campaignId={state.campaign?.id}
         />
+      </div>
+
+      {/* API Keys Section */}
+      <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p className="mb-3 text-sm font-semibold text-slate-700">AI API Keys</p>
+        <p className="mb-4 text-xs text-slate-500">
+          Get free keys from <a href="https://build.nvidia.com" target="_blank" rel="noreferrer" className="text-blue-600 underline">NVIDIA NIM</a> (1000/day) or <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-blue-600 underline">Google Gemini</a> (1500/day free).
+          NVIDIA keys start with <code className="bg-slate-100 px-1 rounded">nvapi-</code>, Gemini keys start with <code className="bg-slate-100 px-1 rounded">AIza</code>.
+        </p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {[
+            ['companyResearchApiKey', 'Company Research — Primary Key'],
+            ['companyResearchBackupKey', 'Company Research — Backup Key'],
+            ['emailWritingApiKey', 'Email Writing — Primary Key'],
+            ['emailWritingBackupKey', 'Email Writing — Backup Key'],
+          ].map(([key, label]) => (
+            <label key={key} className="block">
+              <span className="text-sm font-medium text-slate-700">{label}</span>
+              <input
+                type="password"
+                value={form[key] || ''}
+                onChange={(event) => update(key, event.target.value)}
+                placeholder="nvapi-... or AIza..."
+                className="focus-ring mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white font-mono"
+              />
+            </label>
+          ))}
+        </div>
       </div>
 
       <label className="block lg:col-span-2">

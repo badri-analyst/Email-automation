@@ -96,6 +96,12 @@ class DecisionEngineController:
             candidate_profile=request.candidate_profile,
         )
 
+        # Pass API keys through so email personalization can use them
+        candidate_profile = request.candidate_profile or {}
+        final_payload_dict = final_payload if isinstance(final_payload, dict) else final_payload.model_dump()
+        final_payload_dict["api_key"] = candidate_profile.get("emailWritingApiKey") or candidate_profile.get("email_writing_api_key") or ""
+        final_payload_dict["backup_api_key"] = candidate_profile.get("emailWritingBackupKey") or candidate_profile.get("email_writing_backup_key") or ""
+
         output = DecisionOutput(
             campaign_id=request.campaign_id,
             prospect_id=request.prospect_id,
@@ -103,7 +109,7 @@ class DecisionEngineController:
             decision_reason="All gates passed. Email payload ready.",
             next_action="send_email",
             email_send_permission="allowed",
-            final_personalization_payload=final_payload,
+            final_personalization_payload=final_payload_dict,
         )
         self._repository.save(output)
         return output

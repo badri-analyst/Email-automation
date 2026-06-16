@@ -501,6 +501,17 @@ export async function runCampaign(request, response, next) {
     let candidate = {};
     try { candidate = await loadCandidateProfile(user.email) || {}; } catch { candidate = {}; }
 
+    const hasEmailKey = Boolean(candidate.emailWritingApiKey || candidate.emailWritingBackupKey);
+    if (!hasEmailKey) {
+      await recalculateCampaignFromEmails({ campaignId, userEmail: user.email, status: CAMPAIGN_STATUSES.uploaded });
+      response.status(400).json({
+        error: 'Email Writing API key is missing. Please add your API key in your candidate profile before running the pipeline.',
+        error_code: 'API_KEY_MISSING',
+        summary: { processed: 0, sent: 0, failed: 0, pending: pendingEmails.length },
+      });
+      return;
+    }
+
     // Resolve which Gmail account to send from.
     // 1. Caller can pass gmail_address in the request body to pick a specific account.
     // 2. Otherwise load the most recently connected account from gmail_oauth_accounts.
@@ -660,6 +671,8 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         target_role: targetRole,
         target_country: targetCountry,
         approved_sources: [],
+        api_key: candidate.companyResearchApiKey || '',
+        backup_api_key: candidate.companyResearchBackupKey || '',
       };
       const companyOutput = await safeRunPython('company-research', companyInput);
 
@@ -679,6 +692,8 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         campaign_id: campaignId,
         prospect_id: prospectId,
         final_personalization_payload: decisionOutput.final_personalization_payload,
+        api_key: candidate.emailWritingApiKey || '',
+        backup_api_key: candidate.emailWritingBackupKey || '',
       };
       emailOutput = await safeRunPython('email-personalization', emailInput);
 
@@ -866,6 +881,10 @@ export async function candidateAssets(request, response, next) {
             resumeFileName: body.resumeFileName || '',
             resumeUrl: body.resumeUrl || '',
             targetRole: body.targetRole || '',
+            companyResearchApiKey: body.companyResearchApiKey || '',
+            companyResearchBackupKey: body.companyResearchBackupKey || '',
+            emailWritingApiKey: body.emailWritingApiKey || '',
+            emailWritingBackupKey: body.emailWritingBackupKey || '',
             userId: user.id,
           },
         },

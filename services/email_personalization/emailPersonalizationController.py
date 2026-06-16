@@ -64,7 +64,10 @@ class EmailPersonalizationController:
             return self._blocked(request, "blocked_invalid_payload", "Final personalization payload is missing.")
 
         # --- AI-first path ---
-        ai_result = emailGenerationAiService.enhance(request.model_dump())
+        request_dict = request.model_dump()
+        request_dict["api_key"] = payload.get("api_key", "") or ""
+        request_dict["backup_api_key"] = payload.get("backup_api_key", "") or ""
+        ai_result = emailGenerationAiService.enhance(request_dict)
         if ai_result and ai_result.get("subject_line") and ai_result.get("email_body"):
             subject = _clean_text(ai_result["subject_line"])
             body = _clean_text(ai_result["email_body"])

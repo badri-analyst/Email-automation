@@ -1,4 +1,4 @@
-"""AI-powered company research using NVIDIA Llama 4 Maverick."""
+"""AI-powered company research using NVIDIA or Gemini."""
 
 import json
 from pathlib import Path
@@ -19,22 +19,20 @@ def _load_prompt() -> str:
 def enhance(input_data: dict) -> dict | None:
     """Call AI to produce company research output.
 
-    Returns a dict with AI-generated fields on success.
-    Returns None if AI is not configured or the call fails,
-    so the caller can fall back to the deterministic pipeline.
+    Returns a dict on success, None if AI is not configured or call fails.
     """
-    if not is_ai_configured(_MODULE):
+    api_key = input_data.get("api_key", "") or ""
+    backup_api_key = input_data.get("backup_api_key", "") or ""
+
+    if not is_ai_configured(_MODULE, api_key, backup_api_key):
         logger.debug("Company research AI not configured — using deterministic pipeline.")
         return None
 
     user_message = json.dumps({
         "company_name": input_data.get("company_name", ""),
         "company_website": input_data.get("company_website", ""),
-        "company_linkedin_url": input_data.get("company_linkedin_url", ""),
         "target_role": input_data.get("target_role", ""),
         "target_country": input_data.get("target_country", ""),
-        "approved_sources": input_data.get("approved_sources", []),
-        "prospect_email": input_data.get("prospect_email", ""),
     }, ensure_ascii=False)
 
     try:
@@ -44,9 +42,11 @@ def enhance(input_data: dict) -> dict | None:
             user_message=user_message,
             temperature=0.3,
             max_tokens=1500,
+            api_key=api_key,
+            backup_api_key=backup_api_key,
         )
         logger.info("Company research AI call succeeded for '%s'", input_data.get("company_name"))
         return result
     except Exception as exc:
-        logger.warning("Company research AI call failed — falling back to deterministic: %s", exc)
+        logger.warning("Company research AI call failed: %s", exc)
         return None
