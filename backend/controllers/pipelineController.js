@@ -24,8 +24,6 @@ export async function health(_request, response) {
     status: 'ok',
     service: 'ai-outreach-backend',
     supabaseConfigured: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
-    roleCountryApiConfigured: Boolean(process.env.ROLE_COUNTRY_API_KEY),
-    linkedinResearchApiConfigured: Boolean(process.env.LINKEDIN_RESEARCH_API_KEY),
     companyResearchApiConfigured: Boolean(process.env.COMPANY_RESEARCH_API_KEY),
     emailWritingApiConfigured: Boolean(process.env.EMAIL_WRITING_API_KEY || process.env.OPENAI_API_KEY),
     sharedAiConfigured: Boolean(process.env.AI_API_KEY || process.env.AIMLAPI_API_KEY || process.env.OPENAI_API_KEY),
@@ -535,8 +533,7 @@ export async function runCampaign(request, response, next) {
 
     // Respond immediately — client will poll /campaigns/:id for live progress.
     const steps = [
-      'Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research',
-      'Company Research', 'Candidate Assets',
+      'Validation', 'Cleaning', 'Company Research', 'Candidate Assets',
       'Decision Engine', 'Email Generation', 'Gmail Send',
     ].map((name) => ({ name, status: 'completed', reason: `${name} completed` }));
     response.json({
@@ -655,29 +652,6 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
     let emailOutput = {};
     let sendOutput;
     try {
-      const roleCountryInput = {
-        campaign_id: campaignId,
-        prospect_id: prospectId,
-        target_role: targetRole,
-        target_country: targetCountry,
-        candidate_positioning: candidate.whyRelevant || '',
-        candidate_skills: candidate.skills || '',
-        candidate_summary: candidate.resumeSummary || '',
-      };
-      // Each module calls its own dedicated API key (ROLE_COUNTRY_API_KEY, LINKEDIN_RESEARCH_API_KEY,
-      // COMPANY_RESEARCH_API_KEY, EMAIL_WRITING_API_KEY). safeRunPython has 1 retry + fallback.
-      const roleCountryOutput = await safeRunPython('role-country', roleCountryInput);
-
-      const linkedinInput = {
-        full_name: row.name || record.recipient_name,
-        role_title: targetRole,
-        company_name: companyName,
-        normalized_company_name: companyName,
-        linkedin_url: row.linkedin_url || candidate.linkedInUrl || '',
-        profile_summary: candidate.resumeSummary || '',
-      };
-      const linkedinOutput = await safeRunPython('linkedin-research', linkedinInput);
-
       const companyInput = {
         campaign_id: campaignId,
         prospect_id: prospectId,
@@ -685,7 +659,6 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         company_website: row.company_website || row.website || '',
         target_role: targetRole,
         target_country: targetCountry,
-        linkedin_research_status: linkedinOutput.research_status,
         approved_sources: [],
       };
       const companyOutput = await safeRunPython('company-research', companyInput);
@@ -694,8 +667,8 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         campaign_id: campaignId,
         prospect_id: prospectId,
         cleaning_output: { ...row, full_name: row.name || record.recipient_name, role_title: targetRole, company_name: companyName },
-        role_country_output: roleCountryOutput,
-        linkedin_research_output: linkedinOutput,
+        role_country_output: {},
+        linkedin_research_output: {},
         company_research_output: companyOutput,
         campaign_settings: { gmail_configured: true, gmail_valid: true, sending_enabled: true },
         candidate_profile: candidate,
@@ -1130,21 +1103,6 @@ export async function runPipeline(request, response, next) {
       const targetRole = row.role || row.Role || candidate.targetRole || candidate.currentRole || '';
       const targetCountry = row.country || row.Country || candidate.preferredCountries || '';
       const companyName = row.company || row.Company;
-      const roleCountryOutput = await runPython('role-country', {
-        campaign_id: campaignId,
-        prospect_id: prospectId,
-        target_role: targetRole,
-        target_country: targetCountry,
-        candidate_positioning: candidate.whyRelevant,
-      });
-      const linkedinOutput = await runPython('linkedin-research', {
-        full_name: row.name || row.Name,
-        role_title: targetRole,
-        company_name: companyName,
-        normalized_company_name: companyName,
-        linkedin_url: row.linkedin_url || candidate.linkedInUrl || '',
-        profile_summary: candidate.resumeSummary || '',
-      });
       const companyOutput = await runPython('company-research', {
         campaign_id: campaignId,
         prospect_id: prospectId,
@@ -1152,15 +1110,14 @@ export async function runPipeline(request, response, next) {
         company_website: row.company_website || row.website || '',
         target_role: targetRole,
         target_country: targetCountry,
-        linkedin_research_status: linkedinOutput.research_status,
         approved_sources: [],
       });
       const decisionOutput = await runPython('decision-engine', {
         campaign_id: campaignId,
         prospect_id: prospectId,
         cleaning_output: { ...row, full_name: row.name || row.Name, role_title: targetRole, company_name: companyName },
-        role_country_output: roleCountryOutput,
-        linkedin_research_output: linkedinOutput,
+        role_country_output: {},
+        linkedin_research_output: {},
         company_research_output: companyOutput,
         campaign_settings: {
           gmail_configured: Boolean(gmailAddress && refreshToken),
@@ -1227,7 +1184,7 @@ export async function runPipeline(request, response, next) {
       });
     }
 
-    ['Validation', 'Cleaning', 'Role-Country Intelligence', 'LinkedIn Research', 'Company Research', 'Candidate Assets', 'Decision Engine', 'Email Generation', 'Gmail Send'].forEach((name) => {
+    ['Validation', 'Cleaning', 'Company Research', 'Candidate Assets', 'Decision Engine', 'Email Generation', 'Gmail Send'].forEach((name) => {
       steps.push({ name, status: 'completed', reason: `${name} completed` });
     });
 

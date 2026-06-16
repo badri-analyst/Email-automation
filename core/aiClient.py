@@ -16,14 +16,6 @@ DEFAULT_TIMEOUT = 90  # seconds
 # Per-module model + API key configuration.
 # Each step can use a different model and a different API key env var.
 MODULE_CONFIG: dict[str, dict[str, str]] = {
-    "role-country": {
-        "model": "nvidia/nemotron-mini-4b-instruct",
-        "api_key_env": "ROLE_COUNTRY_API_KEY",
-    },
-    "linkedin-research": {
-        "model": "mistralai/mistral-large-3-675b-instruct-2512",
-        "api_key_env": "LINKEDIN_RESEARCH_API_KEY",
-    },
     "company-research": {
         "model": "meta/llama-4-maverick-17b-128e-instruct",
         "api_key_env": "COMPANY_RESEARCH_API_KEY",

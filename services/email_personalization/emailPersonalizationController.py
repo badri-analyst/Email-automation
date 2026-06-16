@@ -143,12 +143,23 @@ class EmailPersonalizationController:
 
     @staticmethod
     def _is_weak_payload(payload: dict) -> bool:
-        """Return whether fallback email should be used."""
-        return not (
-            payload.get("opening_hook")
-            or payload.get("key_skills")
-            or payload.get("tone_guidance")
+        """Return whether fallback email should be used.
+
+        Only fall back to the template if we have absolutely no data —
+        not even a prospect name, company, or role to work with.
+        """
+        if payload.get("opening_hook") or payload.get("key_skills") or payload.get("tone_guidance"):
+            return False
+        prospect = payload.get("prospect", {})
+        candidate = payload.get("candidate", {})
+        has_basic_data = (
+            prospect.get("company")
+            or prospect.get("role")
+            or prospect.get("name")
+            or candidate.get("target_role")
+            or candidate.get("current_role")
         )
+        return not has_basic_data
 
     def _blocked(
         self,

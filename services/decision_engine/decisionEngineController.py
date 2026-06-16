@@ -92,8 +92,6 @@ class DecisionEngineController:
         # All gates passed — build the email payload
         final_payload = self._payload_builder.build(
             cleaning=cleaning,
-            role_country=request.role_country_output,
-            linkedin=request.linkedin_research_output,
             company=request.company_research_output,
             candidate_profile=request.candidate_profile,
         )
