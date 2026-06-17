@@ -71,7 +71,11 @@ class EmailPersonalizationController:
         request_dict["model"] = request.model or payload.get("model", "") or ""
         ai_result = emailGenerationAiService.enhance(request_dict)
         if ai_result and ai_result.get("subject_line") and ai_result.get("email_body"):
-            subject = _clean_text(ai_result["subject_line"])
+            # Always use our deterministic subject line rules — never trust AI subject
+            company = payload.get("prospect", {}).get("company") or "your team"
+            subject_key = self._subject_mapper.select_subject_type(payload)
+            det_subject, _ = self._subject_generator.generate(subject_key, company, payload)
+            subject = _clean_text(det_subject)
             body = _clean_text(ai_result["email_body"])
             tone = ai_result.get("tone_used", "professional")
             body = self._quality.shorten_body(body)
