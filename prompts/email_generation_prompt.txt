@@ -93,6 +93,8 @@ TONE RULES:
 - FIRST PERSON ONLY: every sentence uses I / my / me. Never write "he", "she", "his", "her", or refer to the candidate in third person
 - Follow tone_guidance - formal country = formal tone, conversational = write like a real human message
 - Never use: "I am writing to express my interest", "I believe I would be a great fit", "Please find attached", "Dear Sir/Madam"
+- Never use: "I am passionate about", "I am excited about", "I am reaching out", "I wanted to connect", "I hope this finds you well"
+- Never use vague phrases like "extensive experience", "strong background", "skills align well" — use specific numbers or named skills instead
 - Never invent skills or achievements not in the candidate data
 - Every sentence must earn its place - no filler
 
