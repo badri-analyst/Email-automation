@@ -23,15 +23,18 @@ class OpeningTriggerSelector:
         if key_skills:
             sources["role_country_context_used"] = True
             skill = key_skills[0]
+            candidate = payload.get("candidate", {})
+            target_role = candidate.get("target_role") or candidate.get("current_role") or "this role"
             prospect = payload.get("prospect", {})
-            role = prospect.get("role") or "this role"
-            return f"I came across your opening for {role} and wanted to reach out — {skill} is something I have been focused on.", "key skill relevance", sources
+            company = prospect.get("company") or "your company"
+            return f"I noticed {company} and wanted to reach out — {skill} is something I have been focused on as a {target_role}.", "key skill relevance", sources
 
         sources["fallback_used"] = True
         prospect = payload.get("prospect", {})
         candidate = payload.get("candidate", {})
-        role = prospect.get("role") or candidate.get("target_role") or candidate.get("current_role") or "this role"
-        return f"I wanted to reach out with a focused note about {role} opportunities.", "role-based fallback", sources
+        target_role = candidate.get("target_role") or candidate.get("current_role") or "this role"
+        company = prospect.get("company") or "your company"
+        return f"I wanted to reach out about {target_role} opportunities at {company}.", "role-based fallback", sources
 
     @staticmethod
     def _line(text: str) -> str:

@@ -22,15 +22,34 @@ class HookModelEmailBuilder:
         """Return email body, CTA type, metadata, and sources used."""
         opening, trigger, source_flags = self._opening.select(payload)
         cta_type, cta_sentence = self._cta.build(variant)
-        body = "\n\n".join(
-            [
-                opening,
-                self._positioning.build(payload),
-                self._proof.build(payload),
-                self._resume.build(),
-                cta_sentence,
-            ]
-        )
+        candidate = payload.get("candidate", {})
+        link_lines = []
+        if candidate.get("linkedin_url"):
+            link_lines.append(f"LinkedIn: {candidate['linkedin_url']}")
+        if candidate.get("resume_url"):
+            link_lines.append(f"Resume: {candidate['resume_url']}")
+        if candidate.get("youtube_url"):
+            link_lines.append(f"Why Should You Hire Me: {candidate['youtube_url']}")
+        if candidate.get("portfolio_url"):
+            link_lines.append(f"Portfolio: {candidate['portfolio_url']}")
+        links_block = "\n".join(link_lines)
+
+        phone = candidate.get("phone", "")
+        name = candidate.get("full_name", "")
+        sign_off_parts = ["Regards,", name] + ([phone] if phone else [])
+        sign_off = "\n".join(p for p in sign_off_parts if p)
+
+        parts = [
+            opening,
+            self._positioning.build(payload),
+            self._proof.build(payload),
+            self._resume.build(),
+            cta_sentence,
+        ]
+        if links_block:
+            parts.append(links_block)
+        parts.append(sign_off)
+        body = "\n\n".join(parts)
         metadata = PersonalizationUsed(
             trigger=trigger,
             action=cta_sentence,
