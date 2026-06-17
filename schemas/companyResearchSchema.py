@@ -14,6 +14,7 @@ CompanyResearchSourceType = Literal[
     "company_news",
     "search_result",
     "email_domain",
+    "ai_generated",
     "insufficient_data",
 ]
 CompanyResearchStatus = Literal[
