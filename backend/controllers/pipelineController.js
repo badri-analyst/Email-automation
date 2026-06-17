@@ -578,8 +578,8 @@ export async function runCampaign(request, response, next) {
 // Processes up to BATCH_CONCURRENCY emails at a time so the server can
 // handle multiple campaigns simultaneously without running out of memory.
 // ---------------------------------------------------------------------------
-const BATCH_CONCURRENCY = 2;       // 2 emails at a time per user — safe for free NVIDIA NIM (40 req/min per key)
-const BATCH_DELAY_MS = 2000;       // 2s pause between batches to stay under rate limits
+const BATCH_CONCURRENCY = 1;       // 1 email at a time — prevents Gmail and NVIDIA rate limits
+const BATCH_DELAY_MS = 30000;      // 30s pause between emails
 
 // ---------------------------------------------------------------------------
 // Global concurrency semaphore — shared across ALL users and campaigns.
