@@ -53,6 +53,7 @@ SENTENCE LENGTH RULE: Every sentence in the email body must be 7 to 10 words. Wr
 
 Paragraph 1 - TRIGGER + INVESTMENT acknowledgement (1-2 sentences):
 Use the opening_hook as your primary trigger. If company_context has recent_updates, growth_signal, or products_services — weave one specific detail into this paragraph to show real research. Reference something the prospect invested in or something happening at their company right now. Make it warm and specific.
+IMPORTANT: prospect.role is the prospect's OWN job title — NOT a job they are hiring for. Never write "I came across your opening for [prospect.role]". Instead reference what they do or what their company does.
 Never open with "I hope this email finds you well" or "My name is".
 
 Paragraph 2 - ACTION setup: candidate intro + fit (2 to 3 sentences):
