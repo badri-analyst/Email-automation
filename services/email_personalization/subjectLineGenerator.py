@@ -1,5 +1,7 @@
 """Subject line generation."""
 
+import hashlib
+
 from services.email_personalization.rule_loader import load_email_config
 
 
@@ -23,7 +25,15 @@ class SubjectLineGenerator:
     def generate(self, subject_key: str, company: str, payload: dict | None = None) -> tuple[str, str]:
         """Return subject line and display subject type."""
         payload = payload or {}
-        template = self._rules["formulas"].get(subject_key, self._rules["formulas"]["fallback"])
+        formulas = self._rules["formulas"].get(subject_key, self._rules["formulas"]["fallback"])
+
+        # Support both list and single string formulas
+        if isinstance(formulas, list):
+            # Pick deterministically based on company name so same company always gets same subject
+            idx = int(hashlib.md5(company.encode()).hexdigest(), 16) % len(formulas)
+            template = formulas[idx]
+        else:
+            template = formulas
 
         # Extract placeholders
         candidate = payload.get("candidate", {})
