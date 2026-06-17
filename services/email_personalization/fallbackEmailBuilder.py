@@ -44,10 +44,11 @@ class FallbackEmailBuilder:
         links_block = "\n".join(link_lines)
 
         opening = f"I wanted to reach out about {display_role} opportunities at {company}." if display_role else f"I wanted to reach out about opportunities at {company}."
+        value_line = f"I have hands-on experience with {key_skills[0]} and would bring immediate value to your team." if key_skills else "I would welcome the chance to show how I could add value to your team."
         parts = [
             opening,
             intro,
-            "I can share a concise example of how I approach requirements clarity, stakeholder alignment, and business-tech communication.",
+            value_line,
             cta_sentence,
         ]
         if links_block:
