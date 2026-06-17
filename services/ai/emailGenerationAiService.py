@@ -42,6 +42,7 @@ def enhance(input_data: dict) -> dict | None:
         "prospect": payload.get("prospect", {}),
         "key_skills": payload.get("key_skills", []),
         "tone_guidance": payload.get("tone_guidance", ""),
+        "company_context": payload.get("company_context", {}),
     }, ensure_ascii=False)
 
     try:

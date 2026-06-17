@@ -22,6 +22,7 @@ class FinalPayloadBuilder:
             prospect=self._prospect(cleaning),
             key_skills=self._pick_skills(profile, company),
             tone_guidance=self._pick_tone(company, cleaning),
+            company_context=self._company_context(company),
         )
 
     # ------------------------------------------------------------------
@@ -71,6 +72,33 @@ class FinalPayloadBuilder:
         if country:
             return f"Professional tone suitable for {country} business culture."
         return ""
+
+    # ------------------------------------------------------------------
+    # Company context — rich intel for the email AI
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _company_context(company: dict[str, Any]) -> dict[str, Any]:
+        def valid(v: Any) -> bool:
+            return bool(v) and str(v).strip() not in ("", "Insufficient data.")
+
+        ctx: dict[str, Any] = {}
+        if valid(company.get("company_overview")):
+            ctx["overview"] = company["company_overview"]
+        if valid(company.get("industry")):
+            ctx["industry"] = company["industry"]
+        if valid(company.get("products_services_summary")):
+            ctx["products_services"] = company["products_services_summary"]
+        if valid(company.get("growth_or_hiring_signal")):
+            ctx["growth_signal"] = company["growth_or_hiring_signal"]
+        if valid(company.get("role_relevance_context")):
+            ctx["role_relevance"] = company["role_relevance_context"]
+        updates = [
+            u.get("update", "") for u in company.get("recent_company_updates", [])
+            if valid(u.get("update", ""))
+        ]
+        if updates:
+            ctx["recent_updates"] = updates
+        return ctx
 
     # ------------------------------------------------------------------
     # Candidate — from saved profile form
