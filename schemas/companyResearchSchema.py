@@ -69,6 +69,10 @@ class CompanyResearchInput(StrictCompanyResearchModel):
     linkedin_research_status: LinkedInResearchStatus = "insufficient_data"
     enrichment_mode: bool = False
     approved_sources: list[ApprovedCompanySource] = Field(default_factory=list)
+    api_key: str = ""
+    backup_api_key: str = ""
+    base_url: str = ""
+    model: str = ""
 
 
 class CompanyRecentUpdate(StrictCompanyResearchModel):
