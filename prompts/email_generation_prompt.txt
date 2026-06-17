@@ -52,9 +52,15 @@ SENTENCE LENGTH RULE: Every sentence in the email body must be 7 to 10 words. Wr
 
 
 Paragraph 1 - TRIGGER + INVESTMENT acknowledgement (1-2 sentences):
-Use the opening_hook as your primary trigger. If company_context has recent_updates, growth_signal, or products_services — weave one specific detail into this paragraph to show real research. Reference something the prospect invested in or something happening at their company right now. Make it warm and specific.
-IMPORTANT: prospect.role is the prospect's OWN job title — NOT a job they are hiring for. Never write "I came across your opening for [prospect.role]". Instead reference what they do or what their company does.
-Never open with "I hope this email finds you well" or "My name is".
+Use the opening_hook as your primary trigger. If company_context has recent_updates, growth_signal, or products_services — weave one specific detail into this paragraph to show real research. Reference something happening at their company — a product, expansion, funding, or market move. Make it warm and specific.
+
+STRICT RULES FOR PARAGRAPH 1:
+- NEVER write "I came across your opening for..." — prospect.role is THEIR job title, not a vacancy
+- NEVER write "I noticed you are hiring for..."
+- NEVER write "I saw your job posting..."
+- NEVER mention the prospect's job title as if it's a job opening
+- DO write about what the company does, a recent company move, or the opening_hook
+- Never open with "I hope this email finds you well" or "My name is"
 
 Paragraph 2 - ACTION setup: candidate intro + fit (2 to 3 sentences):
 ALWAYS write in FIRST PERSON. The candidate is writing this email themselves. Use "I", "my", "me" - never "he", "she", "his", "her", or the candidate's name as subject.

@@ -62,18 +62,23 @@ def _resolve_config(
         backup_api_key.strip()
         or os.environ.get(config.get("backup_key_env", ""), "")
     )
-    resolved_base_url = (
-        base_url.strip()
-        or os.environ.get(config.get("base_url_env", ""), "")
-        or os.environ.get("AI_API_BASE_URL", "")
-        or config.get("default_base_url", "https://integrate.api.nvidia.com/v1")
-    ).rstrip("/")
-    resolved_model = (
-        model.strip()
-        or os.environ.get(config.get("model_env", ""), "")
-        or os.environ.get("AI_MODEL", "")
-        or config.get("default_model", "")
-    )
+    # For Gemini native keys (AQ.), skip NVIDIA defaults entirely
+    if _is_gemini_native_key(resolved_key) or _is_gemini_native_key(resolved_backup):
+        resolved_base_url = ""
+        resolved_model = model.strip() or os.environ.get(config.get("model_env", ""), "") or ""
+    else:
+        resolved_base_url = (
+            base_url.strip()
+            or os.environ.get(config.get("base_url_env", ""), "")
+            or os.environ.get("AI_API_BASE_URL", "")
+            or config.get("default_base_url", "https://integrate.api.nvidia.com/v1")
+        ).rstrip("/")
+        resolved_model = (
+            model.strip()
+            or os.environ.get(config.get("model_env", ""), "")
+            or os.environ.get("AI_MODEL", "")
+            or config.get("default_model", "")
+        )
     return {
         "api_key": resolved_key,
         "backup_api_key": resolved_backup,
