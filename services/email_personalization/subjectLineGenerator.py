@@ -39,6 +39,7 @@ class SubjectLineGenerator:
         candidate = payload.get("candidate", {})
         prospect = payload.get("prospect", {})
         key_skills = payload.get("key_skills") or []
+        company_context = payload.get("company_context", {})
 
         target_role = (
             candidate.get("target_role")
@@ -49,15 +50,47 @@ class SubjectLineGenerator:
         role_skill = key_skills[0] if key_skills else target_role
         role_gap = key_skills[0] if key_skills else "workflow"
 
+        # Extract short company signal from research for use in subject line
+        company_signal = self._extract_company_signal(payload, company_context)
+
         subject = template.format(
             company=company or "your team",
             target_role=target_role,
             role_skill=role_skill,
             role_gap=role_gap,
+            company_signal=company_signal or company,
         ).strip()
 
         subject = self._shorten(subject)
         return subject, self._type_labels.get(subject_key, "fallback")
+
+    @staticmethod
+    def _extract_company_signal(payload: dict, company_context: dict) -> str:
+        """Extract a short company-specific signal for subject line use."""
+        def valid(v):
+            return v and str(v).strip() not in ("", "Insufficient data.")
+
+        # Use opening hook — extract first few words
+        hook = str(payload.get("opening_hook") or "").strip()
+        if valid(hook):
+            # Shorten to key phrase — strip common openers
+            for prefix in ["I came across ", "I noticed ", "Congratulations on ", "Saw "]:
+                if hook.lower().startswith(prefix.lower()):
+                    hook = hook[len(prefix):]
+                    break
+            words = hook.split()
+            return " ".join(words[:5]).rstrip(".,—-")
+
+        # Fall back to growth signal
+        if valid(company_context.get("growth_signal")):
+            words = str(company_context["growth_signal"]).split()
+            return " ".join(words[:5]).rstrip(".,—-")
+
+        # Fall back to industry
+        if valid(company_context.get("industry")):
+            return str(company_context["industry"]).split(",")[0].strip()
+
+        return ""
 
     def _shorten(self, subject: str) -> str:
         """Keep subject under configured word limit."""

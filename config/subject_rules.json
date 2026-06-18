@@ -4,16 +4,16 @@
   "hiring_manager_titles": ["hiring manager", "talent acquisition", "recruiter", "hr manager", "human resources", "people manager", "staffing", "recruitment"],
   "formulas": {
     "executive_problem": [
+      "{company_signal} — a {role_skill} perspective",
       "Solving {role_gap} challenges at {company}",
-      "One idea for {company}'s {role_gap} gap",
-      "A quick thought on {company}'s growth",
-      "Helping {company} close {role_gap} gaps"
+      "{company_signal} caught my attention",
+      "A {role_skill} angle on {company_signal}"
     ],
     "executive_hook": [
-      "A {role_skill} perspective worth two minutes at {company}",
-      "A {role_skill} angle worth two minutes",
-      "{role_skill} insight for {company}",
-      "Two minutes — {role_skill} perspective for {company}"
+      "{company_signal} — worth two minutes",
+      "A {role_skill} take on {company_signal}",
+      "{company_signal} and a {role_skill} fit",
+      "Two minutes — {role_skill} perspective on {company_signal}"
     ],
     "hiring_manager_seek": [
       "Seeking {target_role} opportunity",
