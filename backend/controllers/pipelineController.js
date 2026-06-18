@@ -699,12 +699,6 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
         base_url: candidate.emailWritingBaseUrl || '',
         model: candidate.emailWritingModel || '',
       };
-      debugLog('Email input keys check', {
-        api_key_prefix: (candidate.emailWritingApiKey || '').substring(0, 10) || 'EMPTY',
-        backup_prefix: (candidate.emailWritingBackupKey || '').substring(0, 10) || 'EMPTY',
-        base_url: candidate.emailWritingBaseUrl || 'EMPTY',
-        model: candidate.emailWritingModel || 'EMPTY',
-      });
       emailOutput = await safeRunPython('email-personalization', emailInput);
 
       if (!emailIsSendable(decisionOutput, emailOutput)) {

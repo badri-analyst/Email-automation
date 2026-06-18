@@ -27,11 +27,8 @@ def enhance(input_data: dict) -> dict | None:
     base_url = input_data.get("base_url", "") or ""
     model = input_data.get("model", "") or ""
 
-    logger.error("EMAIL AI DEBUG: api_key_prefix=%s backup_prefix=%s base_url=%s model=%s",
-                 api_key[:10] if api_key else "EMPTY", backup_api_key[:10] if backup_api_key else "EMPTY", base_url or "EMPTY", model or "EMPTY")
-
     if not is_ai_configured(_MODULE, api_key, backup_api_key):
-        logger.error("EMAIL AI: not configured — no keys found, using deterministic builder.")
+        logger.warning("EMAIL AI: not configured — no keys found, using deterministic builder.")
         return None
 
     payload = input_data.get("final_personalization_payload", {})

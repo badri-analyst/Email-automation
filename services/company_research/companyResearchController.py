@@ -74,7 +74,7 @@ class CompanyResearchController:
                 growth_or_hiring_signal=ai_result.get("growth_or_hiring_signal", ""),
                 role_relevance_context=ai_result.get("role_relevance_context", ""),
                 country_relevance_context=ai_result.get("country_relevance_context", ""),
-                company_personalization_hooks=ai_result.get("company_personalization_hooks") or ([ai_result["hook"]] if ai_result.get("hook") and ai_result["hook"] != "Insufficient data." else []),
+                company_personalization_hooks=ai_result.get("company_personalization_hooks") or ([ai_result.get("hook")] if ai_result.get("hook") and ai_result.get("hook") != "Insufficient data." else []),
                 company_email_angle=ai_result.get("company_email_angle") or ai_result.get("hook", ""),
                 manual_review_flag=False,
             )
