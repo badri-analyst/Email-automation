@@ -101,11 +101,19 @@ export default function PipelineExecution() {
     const selectedId = state.campaign?.upload?.campaign?.id || state.campaign?.id;
     const alreadyDone = ['Completed', 'Partially Completed', 'Failed', 'No Recipients'];
 
-    // If the SPECIFIC selected campaign is already done/processing, show results — never re-run on refresh
-    // Only do this check if we have a specific selectedId — don't fall back to campaigns[0] blindly
+    // If any campaign is already Processing (even after refresh), re-attach and poll — never re-run
+    const processing = campaigns.find((c) => c.status === 'Processing');
+    if (processing) {
+      setActiveCampaign(processing);
+      setRunning(true);
+      startPolling(processing.id, processing.totalEmails || 0);
+      return;
+    }
+
+    // If the specific selected campaign is already done, show results — never re-run
     if (selectedId) {
       const latest = campaigns.find((c) => c.id === selectedId);
-      if (latest && (alreadyDone.includes(latest.status) || latest.status === 'Processing')) {
+      if (latest && alreadyDone.includes(latest.status)) {
         setActiveCampaign(latest);
         setSummary({ processed: latest.totalEmails || 0, sent: latest.sentCount || 0, failed: latest.failedCount || 0 });
         setStepStatuses(STEP_NAMES.map(() => ({ status: 'completed', reason: 'Completed', processed: latest.totalEmails || 0 })));
@@ -116,7 +124,7 @@ export default function PipelineExecution() {
 
     const selected =
       campaigns.find((c) => c.id === selectedId && c.pendingCount > 0) ||
-      campaigns.find((c) => c.pendingCount > 0);
+      campaigns.find((c) => c.pendingCount > 0 && !alreadyDone.includes(c.status));
 
     if (!selected) {
       toast.info('No pending campaign found. Upload a sheet first.');
