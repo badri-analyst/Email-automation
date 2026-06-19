@@ -581,6 +581,9 @@ export async function runCampaign(request, response, next) {
 const BATCH_CONCURRENCY = 1;       // 1 email at a time — prevents Gmail and NVIDIA rate limits
 const BATCH_DELAY_MS = 30000;      // 30s pause between emails
 
+// Campaigns that have been stopped mid-run via the /stop endpoint.
+const _stoppedCampaigns = new Set();
+
 // ---------------------------------------------------------------------------
 // Global concurrency semaphore — shared across ALL users and campaigns.
 // Render Standard (2GB): 20 slots × ~75MB Python = ~1.5GB RAM — safe for 10 simultaneous users
@@ -763,18 +766,44 @@ async function processEmailsInBackground({ supabase, campaignId, userEmail, pend
     debugLog('Email processed', { campaignId, recipientEmail, status: sendOutput.send_status });
   }
 
-  // Process in batches: 2 emails at a time with a pause between each batch.
+  // Process in batches: 1 email at a time with a pause between each batch.
   // This prevents NVIDIA NIM rate-limit errors and keeps memory stable for 200+ emails.
   for (let i = 0; i < pendingEmails.length; i += BATCH_CONCURRENCY) {
+    if (_stoppedCampaigns.has(campaignId)) {
+      debugLog('Campaign stopped by user', { campaignId });
+      _stoppedCampaigns.delete(campaignId);
+      break;
+    }
     const batch = pendingEmails.slice(i, i + BATCH_CONCURRENCY);
     await Promise.all(batch.map((record, batchIdx) => processSingleEmail(record, i + batchIdx)));
     if (i + BATCH_CONCURRENCY < pendingEmails.length) {
-      await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+      // Break delay into 5s chunks so stop signal is checked frequently
+      for (let waited = 0; waited < BATCH_DELAY_MS; waited += 5000) {
+        if (_stoppedCampaigns.has(campaignId)) break;
+        await new Promise((r) => setTimeout(r, Math.min(5000, BATCH_DELAY_MS - waited)));
+      }
     }
   }
 
+  _stoppedCampaigns.delete(campaignId);
   await recalculateCampaignFromEmails({ campaignId, userEmail });
   debugLog('Background processing complete', { campaignId });
+}
+
+export async function stopCampaign(request, response, next) {
+  try {
+    await getAuthenticatedUser(request);
+    const campaignId = request.params.id;
+    _stoppedCampaigns.add(campaignId);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.from('campaigns').update({ status: 'Partially Completed' }).eq('id', campaignId);
+    }
+
+    debugLog('Stop requested for campaign', { campaignId });
+    response.json({ stopped: true, campaignId });
+  } catch (error) { next(error); }
 }
 
 export async function validation(request, response) {

@@ -101,14 +101,17 @@ export default function PipelineExecution() {
     const selectedId = state.campaign?.upload?.campaign?.id || state.campaign?.id;
     const alreadyDone = ['Completed', 'Partially Completed', 'Failed', 'No Recipients'];
 
-    // If the selected campaign is already running or completed, just show results — never re-run on refresh
-    const latest = campaigns.find((c) => c.id === selectedId) || campaigns[0];
-    if (latest && (alreadyDone.includes(latest.status) || latest.status === 'Processing')) {
-      setActiveCampaign(latest);
-      setSummary({ processed: latest.totalEmails || 0, sent: latest.sentCount || 0, failed: latest.failedCount || 0 });
-      setStepStatuses(STEP_NAMES.map(() => ({ status: 'completed', reason: 'Completed', processed: latest.totalEmails || 0 })));
-      setDone(true);
-      return;
+    // If the SPECIFIC selected campaign is already done/processing, show results — never re-run on refresh
+    // Only do this check if we have a specific selectedId — don't fall back to campaigns[0] blindly
+    if (selectedId) {
+      const latest = campaigns.find((c) => c.id === selectedId);
+      if (latest && (alreadyDone.includes(latest.status) || latest.status === 'Processing')) {
+        setActiveCampaign(latest);
+        setSummary({ processed: latest.totalEmails || 0, sent: latest.sentCount || 0, failed: latest.failedCount || 0 });
+        setStepStatuses(STEP_NAMES.map(() => ({ status: 'completed', reason: 'Completed', processed: latest.totalEmails || 0 })));
+        setDone(true);
+        return;
+      }
     }
 
     const selected =
@@ -217,6 +220,20 @@ export default function PipelineExecution() {
     }, POLL_INTERVAL_MS);
   }
 
+  async function stopCampaign() {
+    if (!activeCampaign?.id) return;
+    try {
+      await postJson(`/campaigns/${activeCampaign.id}/stop`, {});
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+      setRunning(false);
+      setDone(true);
+      toast.warning('Campaign stopped. Emails already sent will not be recalled.');
+    } catch {
+      toast.error('Failed to stop campaign.');
+    }
+  }
+
   const total = activeCampaign?.totalEmails || activeCampaign?.pendingCount || 0;
   const completedSteps = stepStatuses.filter((s) => s.status === 'completed').length;
 
@@ -235,18 +252,28 @@ export default function PipelineExecution() {
               : 'Upload a campaign sheet to start.'}
           </p>
         </div>
-        {done && (
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
-              ✓ {summary.sent} Sent
-            </div>
-            {summary.failed > 0 && (
-              <div className="rounded-lg bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700">
-                ✗ {summary.failed} Failed
+        <div className="flex items-center gap-3">
+          {running && (
+            <button
+              onClick={stopCampaign}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+            >
+              Stop Sending
+            </button>
+          )}
+          {done && (
+            <>
+              <div className="rounded-lg bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
+                ✓ {summary.sent} Sent
               </div>
-            )}
-          </div>
-        )}
+              {summary.failed > 0 && (
+                <div className="rounded-lg bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700">
+                  ✗ {summary.failed} Failed
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Large campaign warning */}

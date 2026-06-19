@@ -9,6 +9,7 @@ router.get('/supabase-health', controller.supabaseHealth);
 router.get('/campaigns', controller.listCampaigns);
 router.get('/campaigns/:id', controller.getCampaign);
 router.post('/campaigns/:id/run', controller.runCampaign);
+router.post('/campaigns/:id/stop', controller.stopCampaign);
 router.post('/upload', upload.single('file'), controller.uploadSpreadsheet);
 router.post('/validation', controller.validation);
 router.post('/cleaning', controller.cleaning);
