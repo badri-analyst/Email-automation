@@ -149,8 +149,11 @@ def _normalize_header(value: Any) -> str:
 
 
 def _clean_cell(value: Any) -> str:
-    if pd.isna(value):
-        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (ValueError, TypeError):
+        pass
     return re.sub(r"\s+", " ", str(value)).strip()
 
 
